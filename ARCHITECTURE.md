@@ -1,4 +1,10 @@
-# AI Job Match Assistant — Подробная Архитектура
+# AI Job Match Assistant — Архитектура
+
+> Подробная документация по каждому слою — в своей папке:
+> - [api/BACKEND.md](api/BACKEND.md) — FastAPI, LangGraph, база данных, hh.ru клиент
+> - [frontend/FRONTEND.md](frontend/FRONTEND.md) — React, SSE хук, компоненты
+> - [ml/ML.md](ml/ML.md) — обучение BERT NER и DistilBERT+LoRA
+> - [eval/EVAL.md](eval/EVAL.md) — LLM-as-a-judge, offline метрики
 
 ---
 
