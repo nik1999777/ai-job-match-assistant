@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any
 
@@ -6,8 +7,7 @@ import httpx
 HH_API_BASE = "https://api.hh.ru"
 
 _HEADERS = {
-    "User-Agent": "ai-job-match-assistant/1.0 (github.com/nik1999777/ai-job-match-assistant)",
-    "HH-User-Agent": "ai-job-match-assistant/1.0",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 }
 
 _VACANCY_URL_RE = re.compile(r"hh\.ru/vacancy/(\d+)")
@@ -45,9 +45,64 @@ async def get_vacancy(vacancy_id: str) -> dict[str, Any]:
         return resp.json()
 
 
+async def _page_to_vacancy_data(page: Any) -> dict[str, Any]:
+    # try JSON-LD (Schema.org JobPosting) — most reliable
+    try:
+        raw = await page.evaluate("""() => {
+            for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+                try {
+                    const d = JSON.parse(s.textContent);
+                    if (d['@type'] === 'JobPosting') return s.textContent;
+                } catch(e) {}
+            }
+            return null;
+        }""")
+        if raw:
+            ld = json.loads(raw)
+            return {
+                "name": ld.get("title", ""),
+                "employer": {"name": ld.get("hiringOrganization", {}).get("name", "")},
+                "description": ld.get("description", ""),
+                "key_skills": [],
+            }
+    except Exception:
+        pass
+
+    # fallback: DOM selectors
+    title_el = await page.query_selector('[data-qa="vacancy-title"]')
+    title = (await title_el.inner_text()) if title_el else await page.title()
+
+    company_el = await page.query_selector('[data-qa="vacancy-company-name"]')
+    company = (await company_el.inner_text()) if company_el else ""
+
+    desc_el = await page.query_selector('[data-qa="vacancy-description"]')
+    description = (await desc_el.inner_text()) if desc_el else ""
+
+    skill_els = await page.query_selector_all('[data-qa="bloko-tag__text"]')
+    skills = [{"name": await el.inner_text()} for el in skill_els]
+
+    return {
+        "name": title.strip(),
+        "employer": {"name": company.strip()},
+        "description": description,
+        "key_skills": skills,
+    }
+
+
 async def get_vacancy_by_url(url_or_id: str) -> tuple[str, dict[str, Any]]:
+    from playwright.async_api import async_playwright
+
     vacancy_id = extract_vacancy_id(url_or_id)
-    data = await get_vacancy(vacancy_id)
+    target_url = f"https://hh.ru/vacancy/{vacancy_id}"
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True)
+        ctx = await browser.new_context(user_agent=_HEADERS["User-Agent"])
+        page = await ctx.new_page()
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
+        data = await _page_to_vacancy_data(page)
+        await browser.close()
+
     return vacancy_to_text(data), data
 
 

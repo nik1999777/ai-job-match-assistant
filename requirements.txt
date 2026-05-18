@@ -37,6 +37,9 @@ openai==1.58.1
 rouge-score==0.1.2
 nltk==3.9.1
 
+# Playwright (vacancy page scraping — bypasses DDoS Guard)
+playwright>=1.44.0
+
 # Dev
 httpx==0.28.1
 pytest==8.3.4
