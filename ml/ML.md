@@ -55,7 +55,16 @@ Pipeline:      HuggingFace pipeline("ner", aggregation_strategy="simple")
 Выход: ("middle", 0.87)   ← label + confidence
 ```
 
-**Подход:**
+**Текущий подход (без датасета):**
+
+```
+Модель:   joeddav/xlm-roberta-large-xnli  (multilingual NLI)
+Метод:    zero-shot-classification pipeline
+Гипотеза: "This resume belongs to a {junior|middle|senior} software engineer."
+Плюс:     работает с русским текстом без обучения
+```
+
+**Финальный подход (Неделя 4, после сбора датасета):**
 
 ```
 Базовая модель: distilbert-base-uncased  (66M параметров)
@@ -81,8 +90,8 @@ LoRA добавляет маленькие матрицы (rank=16) поверх
 
 | Файл | Статус |
 |---|---|
-| `api/ml/skill_extractor.py` | 🔜 следующий блок |
-| `api/ml/seniority_clf.py` | 🔜 следующий блок |
+| `api/ml/skill_extractor.py` | ✅ dslim/bert-base-NER, lazy @cache |
+| `api/ml/seniority_clf.py` | ✅ zero-shot xlm-roberta-large-xnli, multilingual |
 | `ml/train_ner.py` | 📅 Неделя 4 |
 | `ml/train_seniority.py` | 📅 Неделя 4 |
 | `ml/data/` | 📅 Неделя 4 |
