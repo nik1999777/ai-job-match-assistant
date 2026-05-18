@@ -1,15 +1,15 @@
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Fusion, FusionQuery, Prefetch, SparseVector
 
-from api.rag.embeddings import dense_embedder, sparse_embedder
+from api.rag.embeddings import get_dense_embedder, get_sparse_embedder
 from api.settings import settings
 
 
 async def retrieve_similar_vacancies(query: str, top_k: int = 3) -> list[dict]:
     client = AsyncQdrantClient(url=settings.qdrant_url)
 
-    dense_vec = list(dense_embedder.embed([query]))[0].tolist()
-    sparse_result = list(sparse_embedder.embed([query]))[0]
+    dense_vec = list(get_dense_embedder().embed([query]))[0].tolist()
+    sparse_result = list(get_sparse_embedder().embed([query]))[0]
 
     response = await client.query_points(
         collection_name=settings.qdrant_collection,

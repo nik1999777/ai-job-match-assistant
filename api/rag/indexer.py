@@ -7,7 +7,7 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from api.rag.embeddings import DENSE_DIM, dense_embedder, sparse_embedder
+from api.rag.embeddings import DENSE_DIM, get_dense_embedder, get_sparse_embedder
 from api.settings import settings
 
 
@@ -34,8 +34,8 @@ async def index_vacancy(
     text: str,
     skills: list[str],
 ) -> None:
-    dense_vec = list(dense_embedder.embed([text]))[0].tolist()
-    sparse_result = list(sparse_embedder.embed([text]))[0]
+    dense_vec = list(get_dense_embedder().embed([text]))[0].tolist()
+    sparse_result = list(get_sparse_embedder().embed([text]))[0]
 
     point_id = int(vacancy_id) if vacancy_id.isdigit() else abs(hash(vacancy_id)) % (2 ** 31)
 

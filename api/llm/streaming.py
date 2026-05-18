@@ -37,6 +37,13 @@ async def event_stream(
     yield _sse(data), final_state
 
 
+async def run_graph(graph, resume: str, vacancy: str) -> dict[str, Any]:
+    final_state: dict[str, Any] = {}
+    async for _, state in event_stream(graph, resume, vacancy):
+        final_state = state
+    return final_state
+
+
 def _sse(payload: str) -> bytes:
     return f"data: {payload}\n\n".encode()
 
