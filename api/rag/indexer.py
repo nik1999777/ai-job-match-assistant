@@ -1,9 +1,3 @@
-"""
-Qdrant indexer — stores vacancies as hybrid vectors (dense + sparse).
-
-Dense  → BAAI/bge-small-en-v1.5 (384d, cosine) — semantic similarity
-Sparse → BM42 (fastembed)                        — keyword exact match
-"""
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance,
@@ -18,7 +12,6 @@ from api.settings import settings
 
 
 async def ensure_collection(client: AsyncQdrantClient) -> None:
-    """Create Qdrant collection if it does not exist yet."""
     existing = {c.name for c in (await client.get_collections()).collections}
     if settings.qdrant_collection in existing:
         return
@@ -41,12 +34,6 @@ async def index_vacancy(
     text: str,
     skills: list[str],
 ) -> None:
-    """
-    Embed and upsert one vacancy into Qdrant.
-
-    Uses upsert so re-running the script is idempotent.
-    hh.ru vacancy IDs are numeric strings → store as int for Qdrant.
-    """
     dense_vec = list(dense_embedder.embed([text]))[0].tolist()
     sparse_result = list(sparse_embedder.embed([text]))[0]
 
@@ -68,7 +55,6 @@ async def index_vacancy(
                     "vacancy_id": vacancy_id,
                     "title": title,
                     "skills": skills,
-                    # store first 500 chars as preview — full text is in PostgreSQL
                     "text_preview": text[:500],
                 },
             )

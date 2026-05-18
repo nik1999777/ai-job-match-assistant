@@ -7,15 +7,6 @@ async def event_stream(
     resume: str,
     vacancy: str,
 ) -> AsyncGenerator[tuple[bytes, dict[str, Any]], None]:
-    """
-    Runs the LangGraph pipeline and yields (SSE bytes, accumulated state) tuples.
-
-    SSE event types emitted:
-      node_start  – a graph node began execution
-      token       – a streamed LLM token (from on_chat_model_stream)
-      node_done   – a graph node finished
-      done        – pipeline complete, final state attached
-    """
     initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy}
     final_state: dict[str, Any] = {}
 
@@ -51,7 +42,6 @@ def _sse(payload: str) -> bytes:
 
 
 def _serialisable(state: dict[str, Any]) -> dict[str, Any]:
-    """Return a JSON-safe copy of the state (drop non-serialisable values)."""
     safe: dict[str, Any] = {}
     for k, v in state.items():
         try:

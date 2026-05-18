@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-"""
-Fetch vacancies from hh.ru public API and index them into Qdrant.
-
-This script populates the RAG knowledge base. Run it once before starting the API.
-hh.ru rate limit: ~5 req/sec on public endpoints — we add small delays.
-
-Usage:
-    # index 300 vacancies for 3 ML-related queries
-    python -m scripts.index_vacancies
-
-    # custom queries and pages
-    python -m scripts.index_vacancies --query "LLM Engineer" --query "ML инженер" --pages 5
-
-    # index for a specific city (area=2 is Saint-Petersburg)
-    python -m scripts.index_vacancies --area 2
-"""
 import asyncio
 import argparse
 import sys
@@ -25,7 +9,6 @@ from api.clients.hh_client import get_vacancy, search_vacancies, vacancy_to_text
 from api.rag.indexer import ensure_collection, index_vacancy
 from api.settings import settings
 
-# Tech skills to extract from vacancy text for Qdrant payload
 _SKILL_KEYWORDS = {
     "python", "pytorch", "tensorflow", "keras", "fastapi", "flask", "django",
     "langchain", "langgraph", "openai", "ollama", "llm", "gpt", "claude",
@@ -82,8 +65,7 @@ async def run(queries: list[str], pages: int, area: int) -> None:
                     total_indexed += 1
                     if total_indexed % 50 == 0:
                         print(f"    ... {total_indexed} indexed so far")
-                    # be polite to hh.ru: ~5 req/sec
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(0.2)  # hh.ru rate limit ~5 req/sec
                 except Exception as exc:
                     total_skipped += 1
                     print(f"    skip {vacancy_id} ({title[:40]}): {exc}", file=sys.stderr)
@@ -95,29 +77,12 @@ async def run(queries: list[str], pages: int, area: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Index hh.ru vacancies into Qdrant")
-    parser.add_argument(
-        "--query",
-        action="append",
-        dest="queries",
-        metavar="QUERY",
-        help="Search query (can be used multiple times)",
-    )
-    parser.add_argument(
-        "--pages",
-        type=int,
-        default=3,
-        help="Pages to fetch per query (100 vacancies/page, default: 3)",
-    )
-    parser.add_argument(
-        "--area",
-        type=int,
-        default=1,
-        help="hh.ru area ID: 1=Москва, 2=Питер, 0=Россия (default: 1)",
-    )
+    parser.add_argument("--query", action="append", dest="queries", metavar="QUERY")
+    parser.add_argument("--pages", type=int, default=3)
+    parser.add_argument("--area", type=int, default=1)
     args = parser.parse_args()
 
-    queries = args.queries or DEFAULT_QUERIES
-    asyncio.run(run(queries, args.pages, args.area))
+    asyncio.run(run(args.queries or DEFAULT_QUERIES, args.pages, args.area))
 
 
 if __name__ == "__main__":
