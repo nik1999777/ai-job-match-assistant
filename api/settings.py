@@ -9,10 +9,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2"
+    ollama_model: str = "llama3"
 
     # DB
-    database_url: str = "postgresql+asyncpg://jobmatch:jobmatch@localhost:5432/jobmatch"
+    database_url: str = "postgresql+asyncpg://jobmatch:jobmatch@localhost:5433/jobmatch"
 
     # Qdrant
     qdrant_url: str = "http://localhost:6333"
