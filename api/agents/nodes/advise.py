@@ -4,7 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from api.llm.provider import get_llm
 
-PROMPT = ChatPromptTemplate.from_messages([
+_SEEKER_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are an expert career advisor. "
         "Give concrete, actionable advice tailored to the specific gap analysis provided."
@@ -36,10 +36,43 @@ Specific bullet-level edits to better match the vacancy.
 How to position this application given the gap."""),
 ])
 
+_HR_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are a senior technical recruiter. "
+        "Give a concise, structured assessment of the candidate's fit for the role."
+    )),
+    ("human", """Assess this candidate against the vacancy requirements.
+
+RESUME SUMMARY: {resume_summary}
+VACANCY SUMMARY: {vacancy_summary}
+MATCH SCORE: {match_score}
+SENIORITY: {seniority} (confidence: {seniority_confidence})
+
+MATCHING SKILLS: {skills_found}
+MISSING SKILLS: {skills_missing}
+
+SIMILAR VACANCIES ON MARKET:
+{similar_context}
+
+Respond with four sections:
+## Candidate Fit
+1-2 sentences on overall fit.
+
+## Strengths
+Key matching skills and relevant experience.
+
+## Gaps
+Missing skills and experience gaps that matter for this role.
+
+## Hiring Recommendation
+One of: **Hire** / **Borderline** / **No Hire** — with a one-line justification."""),
+])
+
 
 async def advise_node(state: dict[str, Any]) -> dict[str, Any]:
     parsed = state.get("parsed", {})
     similar = state.get("similar_vacancies", [])
+    mode = state.get("mode", "seeker")
 
     similar_context = "\n".join(
         "- {title}: {skills}".format(
@@ -49,8 +82,9 @@ async def advise_node(state: dict[str, Any]) -> dict[str, Any]:
         for v in similar[:3]
     ) or "No similar vacancies retrieved."
 
+    prompt = _HR_PROMPT if mode == "hr" else _SEEKER_PROMPT
     llm = get_llm()
-    chain = PROMPT | llm
+    chain = prompt | llm
 
     result = await chain.ainvoke({
         "resume_summary": parsed.get("resume_summary", "—"),

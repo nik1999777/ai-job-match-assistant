@@ -1,3 +1,5 @@
+import hashlib
+
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance,
@@ -37,7 +39,10 @@ async def index_vacancy(
     dense_vec = list(get_dense_embedder().embed([text]))[0].tolist()
     sparse_result = list(get_sparse_embedder().embed([text]))[0]
 
-    point_id = int(vacancy_id) if vacancy_id.isdigit() else abs(hash(vacancy_id)) % (2 ** 31)
+    if vacancy_id.isdigit():
+        point_id = int(vacancy_id)
+    else:
+        point_id = int(hashlib.md5(vacancy_id.encode()).hexdigest(), 16) % (2 ** 31)
 
     await client.upsert(
         collection_name=settings.qdrant_collection,

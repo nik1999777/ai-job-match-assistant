@@ -1,12 +1,14 @@
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.agents.graph import build_graph
 from api.llm.streaming import run_graph
 
 router = APIRouter(prefix="/api", tags=["batch"])
+
+_MAX_BATCH_SIZE = 20
 
 
 class ResumeItem(BaseModel):
@@ -35,10 +37,16 @@ class BatchResponse(BaseModel):
 
 @router.post("/batch", response_model=BatchResponse)
 async def batch_analyze(body: BatchRequest) -> BatchResponse:
+    if len(body.resumes) > _MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Max {_MAX_BATCH_SIZE} resumes per batch request",
+        )
+
     graph = build_graph()
 
     async def analyze_one(item: ResumeItem) -> CandidateResult:
-        state = await run_graph(graph, item.resume, body.vacancy)
+        state = await run_graph(graph, item.resume, body.vacancy, mode="hr")
         score = state.get("match_score", 0.0)
         if score >= 0.75:
             decision = "hire"

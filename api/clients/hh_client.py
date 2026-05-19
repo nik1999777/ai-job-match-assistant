@@ -90,11 +90,20 @@ async def _page_to_vacancy_data(page: Any) -> dict[str, Any]:
 
 
 async def get_vacancy_by_url(url_or_id: str) -> tuple[str, dict[str, Any]]:
+    """Fetch hh.ru vacancy: official API first, Playwright as fallback."""
+    vacancy_id = extract_vacancy_id(url_or_id)
+
+    # official hh.ru API — no auth required for public vacancies
+    try:
+        data = await get_vacancy(vacancy_id)
+        return vacancy_to_text(data), data
+    except Exception:
+        pass
+
+    # fallback: Playwright (handles DDoS Guard, login walls, etc.)
     from playwright.async_api import async_playwright
 
-    vacancy_id = extract_vacancy_id(url_or_id)
     target_url = f"https://hh.ru/vacancy/{vacancy_id}"
-
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
         ctx = await browser.new_context(user_agent=_HEADERS["User-Agent"])

@@ -6,8 +6,9 @@ async def event_stream(
     graph,
     resume: str,
     vacancy: str,
+    mode: str = "seeker",
 ) -> AsyncGenerator[tuple[bytes, dict[str, Any]], None]:
-    initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy}
+    initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy, "mode": mode}
     final_state: dict[str, Any] = {}
 
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
@@ -63,9 +64,9 @@ async def event_stream(
     yield _sse(data), final_state
 
 
-async def run_graph(graph, resume: str, vacancy: str) -> dict[str, Any]:
+async def run_graph(graph, resume: str, vacancy: str, mode: str = "seeker") -> dict[str, Any]:
     final_state: dict[str, Any] = {}
-    async for _, state in event_stream(graph, resume, vacancy):
+    async for _, state in event_stream(graph, resume, vacancy, mode=mode):
         final_state = state
     return final_state
 

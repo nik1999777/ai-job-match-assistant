@@ -10,6 +10,7 @@ from api.agents.nodes.parse import parse_node
 class JobMatchState(TypedDict, total=False):
     resume: str
     vacancy: str
+    mode: str  # seeker | hr
     parsed: dict[str, Any]
     skills_found: list[str]
     skills_missing: list[str]

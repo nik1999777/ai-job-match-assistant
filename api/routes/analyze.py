@@ -81,7 +81,7 @@ async def analyze(
 
     async def generate():
         result = None
-        async for chunk, state in event_stream(graph, resume_text, vacancy_text):
+        async for chunk, state in event_stream(graph, resume_text, vacancy_text, mode=body.mode):
             yield chunk
             result = state
 
