@@ -18,14 +18,25 @@ const initialState: AnalysisState = {
 export function useAnalyze() {
   const [state, setState] = useState<AnalysisState>(initialState)
 
-  const analyze = useCallback(async (resume: string, vacancyUrl: string) => {
+  const analyze = useCallback(async (params: {
+    resume?: string
+    resumeUrl?: string
+    vacancyUrl?: string
+    vacancyText?: string
+  }) => {
     setState({ ...initialState, status: 'loading' })
 
     try {
       const resp = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume, vacancy_url: vacancyUrl, mode: 'seeker' }),
+        body: JSON.stringify({
+          resume: params.resume || undefined,
+          resume_url: params.resumeUrl || undefined,
+          vacancy_url: params.vacancyUrl || undefined,
+          vacancy: params.vacancyText || undefined,
+          mode: 'seeker',
+        }),
       })
 
       if (!resp.ok) {

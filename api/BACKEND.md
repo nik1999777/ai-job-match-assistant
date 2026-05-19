@@ -167,19 +167,24 @@ async for event in compiled.astream_events(initial_state, version="v2"):
 
 data: {"event": "node_start", "node": "parse_node"}
 data: {"event": "node_done",  "node": "parse_node"}
+data: {"event": "node_start", "node": "gap_node"}
+data: {"event": "node_done",  "node": "gap_node"}
 data: {"event": "node_start", "node": "advise_node"}
-data: {"event": "token", "content": "## Overall"}   ← LLM токены
+data: {"event": "token", "content": "## Overall"}   ← LLM токены только от advise_node
 data: {"event": "token", "content": " Assessment"}
 data: {"event": "done", "state": {...финальный стейт...}}
 ```
 
+> **Важно:** токены стримятся только из `advise_node`. `parse_node` тоже вызывает LLM,
+> но выводит JSON — его токены фильтруются, чтобы не попасть в UI как текст совета.
+
 ```python
-# api/llm/streaming.py
-async def event_stream(graph, resume, vacancy):
-    async for event in graph.astream_events(..., version="v2"):
-        if event["event"] == "on_chat_model_stream":
-            token = event["data"]["chunk"].content
-            yield f"data: {json.dumps({'event': 'token', 'content': token})}\n\n".encode()
+# api/llm/streaming.py — трек активной ноды
+_current_node = None
+if kind == "on_chain_start" and name in _NODE_NAMES:
+    _current_node = name
+elif kind == "on_chat_model_stream" and _current_node == "advise_node":
+    yield token_event  # только advise
 ```
 
 ---
