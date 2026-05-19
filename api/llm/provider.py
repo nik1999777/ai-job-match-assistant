@@ -5,7 +5,7 @@ from api.settings import settings
 
 def get_llm() -> BaseChatModel:
     if settings.llm_provider == "ollama":
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
 
         return ChatOllama(
             model=settings.ollama_model,

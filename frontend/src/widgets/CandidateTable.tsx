@@ -1,4 +1,4 @@
-import { CandidateResult } from '../api/generated'
+import type { CandidateResult } from '../api/generated'
 import { Badge } from '../components/ui/badge'
 import { Progress } from '../components/ui/progress'
 

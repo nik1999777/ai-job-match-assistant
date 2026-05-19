@@ -11,10 +11,13 @@ api/
 │
 ├── routes/          ← роуты (как routes/ в Express)
 │   ├── analyze.py       ← POST /api/analyze — SSE стриминг
-│   │                      принимает: resume/resume_url + vacancy/vacancy_url
+│   │                      принимает: resume/resume_url + vacancy/vacancy_url + mode
 │   │                      auto-detect платформы (hh.ru vs linkedin.com)
 │   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
-│   ├── batch.py         ← POST /api/batch — пакетный анализ
+│   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — URL → текст вакансии
+│   │                      hh.ru: официальный API + Playwright fallback
+│   │                      LinkedIn: Playwright stealth
+│   ├── batch.py         ← POST /api/batch — пакетный анализ (mode=hr, макс 20)
 │   └── health.py        ← GET  /health   — healthcheck DB + Qdrant
 │
 ├── agents/          ← LangGraph пайплайн (вся бизнес-логика)
@@ -25,8 +28,8 @@ api/
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
 ├── llm/
-│   ├── provider.py    ← фабрика: вернуть OpenAI или Ollama клиент
-│   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE
+│   ├── provider.py    ← фабрика: ChatOpenAI (openai) или ChatOllama (langchain-ollama)
+│   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; принимает mode
 │
 ├── ml/
 │   ├── skill_extractor.py  ← BERT NER: найти навыки в тексте

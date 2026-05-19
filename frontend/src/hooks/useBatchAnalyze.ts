@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { batchAnalyzeApiBatchPost, BatchResponse, BatchRequest } from '../api/generated'
+import { batchAnalyzeApiBatchPost } from '../api/generated'
+import type { BatchResponse, BatchRequest } from '../api/generated'
 
 type BatchStatus = 'idle' | 'loading' | 'done' | 'error'
 

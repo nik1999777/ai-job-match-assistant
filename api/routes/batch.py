@@ -1,10 +1,13 @@
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.agents.graph import build_graph
 from api.llm.streaming import run_graph
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["batch"])
 
@@ -46,7 +49,19 @@ async def batch_analyze(body: BatchRequest) -> BatchResponse:
     graph = build_graph()
 
     async def analyze_one(item: ResumeItem) -> CandidateResult:
-        state = await run_graph(graph, item.resume, body.vacancy, mode="hr")
+        try:
+            state = await run_graph(graph, item.resume, body.vacancy, mode="hr")
+        except Exception as exc:
+            logger.error("batch: analysis failed for %s: %s", item.candidate_id, exc, exc_info=True)
+            return CandidateResult(
+                candidate_id=item.candidate_id,
+                match_score=0.0,
+                decision="no_hire",
+                seniority="unknown",
+                skills_found=[],
+                skills_missing=[],
+                explanation=f"Analysis error: {exc}",
+            )
         score = state.get("match_score", 0.0)
         if score >= 0.75:
             decision = "hire"
