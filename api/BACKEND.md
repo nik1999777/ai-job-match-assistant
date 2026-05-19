@@ -35,7 +35,7 @@ api/
 │   └── retriever.py   ← hybrid search RRF, возвращает top-k вакансий
 │
 ├── clients/
-│   └── hh_client.py   ← HTTP клиент к hh.ru public API
+│   └── hh_client.py   ← Playwright клиент к hh.ru (bypass DDoS Guard)
 │
 └── db/
     └── models.py      ← PostgreSQL: таблицы Session + Analysis (SQLAlchemy)
