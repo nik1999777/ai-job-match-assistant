@@ -1,5 +1,12 @@
-import { AnalysisPage } from '@/pages/analysis/ui/AnalysisPage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AnalysisPage } from '../pages/AnalysisPage'
+
+const queryClient = new QueryClient()
 
 export function App() {
-  return <AnalysisPage />
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AnalysisPage />
+    </QueryClientProvider>
+  )
 }
