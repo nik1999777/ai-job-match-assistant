@@ -29,14 +29,19 @@ src/
 │
 ├── widgets/
 │   ├── AnalyzeForm/ui/
-│   │   └── AnalyzeForm.tsx            ← форма: резюме + URL + кнопка
+│   │   └── AnalyzeForm.tsx            ← форма: резюме (ResumeInput) +
+│   │                                     вакансия (URL/текст табы) + кнопка
 │   └── AnalysisResult/ui/
 │       └── AnalysisResult.tsx         ← прогресс узлов + score + markdown
 │
 ├── features/
 │   └── analyze/
-│       ├── api/useAnalyze.ts          ← SSE хук: fetch → читает stream
-│       └── model/types.ts             ← типы: AnalysisState, NodeName
+│       ├── api/useAnalyze.ts          ← SSE хук: params object API
+│       │                                 {resume, resumeUrl, vacancyUrl, vacancyText}
+│       ├── model/types.ts             ← типы: AnalysisState, NodeName
+│       └── ui/
+│           └── ResumeInput.tsx        ← 3-tab компонент: текст / hh.ru / PDF
+│                                         PDF: POST /api/parse-resume → получает текст
 │
 ├── components/ui/                     ← shadcn компоненты (авто-генерация)
 ├── lib/utils.ts                       ← cn() утилита от shadcn
@@ -51,15 +56,15 @@ src/
 ┌─────────────────────────────────────────────────────────────┐
 │              AI Job Match Assistant                         │
 ├──────────────────────────┬──────────────────────────────────┤
-│  textarea: резюме        │  ○ Parsing resume & vacancy      │
-│                          │  ○ Analyzing skill gaps          │
-│                          │  ⏳ Generating advice...         │
-│  input: hh.ru URL        │                                  │
-│                          │  Match: 40% ████░░               │
-│  [Analyze match →]       │  [middle] [python✓] [rag✗]       │
+│  Резюме                  │  ○ Parsing resume & vacancy      │
+│  [Текст][hh.ru][PDF]     │  ○ Analyzing skill gaps          │
+│  textarea / url / drop   │  ⏳ Generating advice...         │
 │                          │                                  │
+│  Вакансия                │  Match: 40% ████░░               │
+│  [URL hh/LinkedIn][Текст]│  [middle] [python✓] [rag✗]       │
+│  https://hh.ru/vacancy/… │                                  │
 │                          │  ## Overall Assessment           │
-│                          │  Your profile matches 40%...     │
+│  [Анализировать →]       │  Your profile matches 40%...     │
 └──────────────────────────┴──────────────────────────────────┘
 ```
 
@@ -70,14 +75,22 @@ src/
 JS аналогия: как `fetch` + `ReadableStream`, но с парсингом SSE строк.
 
 ```typescript
+// Вызов:
+analyze({ resume, resumeUrl, vacancyUrl, vacancyText })
+// resume + resumeUrl — взаимозаменяемы; аналогично vacancy/vacancyUrl
+
 // Поток событий от бэкенда:
 data: {"event": "node_start", "node": "parse_node"}
 data: {"event": "node_done",  "node": "parse_node"}
-data: {"event": "token",      "content": "## Overall"}
+data: {"event": "token",      "content": "## Overall"}  // только от advise_node
 data: {"event": "done",       "state": {...финальный стейт...}}
 ```
 
-Хук читает поток через `resp.body.getReader()`, парсит каждую строку и обновляет `AnalysisState` через `useState`. Компоненты реагируют реактивно.
+Хук читает поток через `resp.body.getReader()`, парсит каждую строку и обновляет `AnalysisState` через `useState`.
+
+## PDF Upload (`features/analyze/ui/ResumeInput.tsx`)
+
+При выборе PDF: хук делает `POST /api/parse-resume` (multipart), получает `{text: "..."}` и кладёт текст в состояние. После этого нажатие «Анализировать» отправляет уже текст в основной `/api/analyze` — никаких изменений в API не требуется.
 
 ---
 

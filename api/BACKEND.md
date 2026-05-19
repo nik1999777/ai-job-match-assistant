@@ -10,9 +10,12 @@ api/
 ├── settings.py      ← переменные окружения (как dotenv + config object)
 │
 ├── routes/          ← роуты (как routes/ в Express)
-│   ├── analyze.py   ← POST /api/analyze — главный эндпоинт, SSE стриминг
-│   ├── batch.py     ← POST /api/batch   — пакетный анализ нескольких пар
-│   └── health.py    ← GET  /health      — healthcheck DB + Qdrant
+│   ├── analyze.py       ← POST /api/analyze — SSE стриминг
+│   │                      принимает: resume/resume_url + vacancy/vacancy_url
+│   │                      auto-detect платформы (hh.ru vs linkedin.com)
+│   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
+│   ├── batch.py         ← POST /api/batch — пакетный анализ
+│   └── health.py        ← GET  /health   — healthcheck DB + Qdrant
 │
 ├── agents/          ← LangGraph пайплайн (вся бизнес-логика)
 │   ├── graph.py     ← собирает граф из трёх узлов
@@ -35,7 +38,9 @@ api/
 │   └── retriever.py   ← hybrid search RRF, возвращает top-k вакансий
 │
 ├── clients/
-│   └── hh_client.py   ← Playwright клиент к hh.ru (bypass DDoS Guard)
+│   ├── hh_client.py      ← Playwright: вакансии hh.ru (bypass DDoS Guard)
+│   ├── resume_parser.py  ← Playwright: hh.ru профиль; PyMuPDF: PDF → текст
+│   └── linkedin_client.py ← Playwright + stealth JS: вакансии LinkedIn
 │
 └── db/
     └── models.py      ← PostgreSQL: таблицы Session + Analysis (SQLAlchemy)
