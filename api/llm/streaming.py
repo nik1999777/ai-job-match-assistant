@@ -11,22 +11,26 @@ async def event_stream(
     final_state: dict[str, Any] = {}
 
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
+    _current_node: str | None = None
 
     async for event in graph.astream_events(initial_state, version="v2"):
         kind: str = event["event"]
         name: str = event.get("name", "")
 
         if kind == "on_chain_start" and name in _NODE_NAMES:
+            _current_node = name
             data = json.dumps({"event": "node_start", "node": name})
             yield _sse(data), final_state
 
-        elif kind == "on_chat_model_stream":
+        elif kind == "on_chat_model_stream" and _current_node == "advise_node":
+            # only stream tokens from the advice node — parse_node returns JSON, not prose
             chunk = event["data"].get("chunk")
             if chunk and getattr(chunk, "content", None):
                 data = json.dumps({"event": "token", "content": chunk.content})
                 yield _sse(data), final_state
 
         elif kind == "on_chain_end" and name in _NODE_NAMES:
+            _current_node = None
             output = event["data"].get("output", {})
             if isinstance(output, dict):
                 final_state.update(output)
