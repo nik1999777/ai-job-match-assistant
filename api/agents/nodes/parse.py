@@ -32,7 +32,9 @@ async def parse_node(state: dict[str, Any]) -> dict[str, Any]:
     })
     import json, re
     raw = result.content
-    # strip markdown code fences if present
     raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("```").strip()
-    parsed = json.loads(raw)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        parsed = {}
     return {**state, "parsed": parsed}
