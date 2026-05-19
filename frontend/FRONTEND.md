@@ -28,31 +28,52 @@ src/
 │   └── streaming.ts          ← SSE логика: читает поток /api/analyze, вызывает callbacks
 │
 ├── store/
-│   └── analysisStore.ts      ← Zustand store: весь streaming state + actions
+│   ├── analysisStore.ts      ← Zustand store для режима "Анализ 1:1"
+│   └── seekStore.ts          ← Zustand store для режима "Поиск работы"
+│                                 (status, statusMessage, resumeSkills, results[])
+│                                 addResult сразу сортирует по match_score DESC
 │
 ├── hooks/
-│   ├── useAnalyze.ts         ← useMutation (TanStack Query) + callbacks в Zustand store
-│   └── useUploadResume.ts    ← обёртка над orval-хуком useParseResumeApiParseResumePost
+│   ├── useAnalyze.ts          ← useMutation (TanStack Query) + callbacks в analysisStore
+│   ├── useUploadResume.ts     ← обёртка над orval-хуком для PDF upload
+│   ├── useBatchAnalyze.ts     ← хук для POST /api/batch (HR режим)
+│   └── useSeekVacancies.ts   ← SSE хук для POST /api/seek
+│                                 читает поток событий: resume_parsed → search_done
+│                                 → result (×N) → done
 │
 ├── components/
-│   ├── ui/                   ← shadcn компоненты
-│   ├── PipelineProgress.tsx  ← прогресс узлов (parse → gap → advise)
-│   ├── MatchScore.tsx        ← процент совпадения + progress bar
-│   ├── SkillBadges.tsx       ← зелёные (found) и красные (missing) badges
-│   └── PipelineInspector.tsx ← коллапс-блок: raw inputs + каждый узел + LLM промпт
+│   ├── ui/                    ← shadcn компоненты
+│   ├── ModeToggle.tsx         ← переключатель: Анализ 1:1 | Поиск работы | HR
+│   ├── PipelineProgress.tsx   ← прогресс узлов (parse → gap → advise)
+│   ├── MatchScore.tsx         ← процент совпадения + progress bar
+│   ├── SkillBadges.tsx        ← зелёные (found) и красные (missing) badges
+│   └── PipelineInspector.tsx  ← коллапс-блок: raw inputs + узлы + LLM промпт
 │
 ├── widgets/
-│   ├── AnalyzeForm.tsx       ← форма: резюме (3 таба) + вакансия (2 таба) + кнопка
-│   └── AnalysisResult.tsx    ← собирает компоненты, читает Zustand store напрямую
+│   ├── AnalyzeForm.tsx        ← форма: резюме (3 таба) + вакансия (2 таба)
+│   ├── AnalysisResult.tsx     ← результат анализа, читает analysisStore
+│   ├── BatchForm.tsx          ← HR форма: вакансия + multi-PDF upload
+│   ├── CandidateTable.tsx     ← таблица кандидатов: rank, score, decision, навыки
+│   ├── SeekForm.tsx           ← форма поиска: резюме (text/PDF) + фильтры
+│   │                             job_title, area (Москва/СПб/Россия),
+│   │                             experience, salary_from, remote, count (5/10/15/20)
+│   └── VacancyResultList.tsx  ← карточки вакансий появляются по мере анализа
+│                                 каждая: rank, title, company, salary, score bar,
+│                                 decision badge, found/missing skills, expand→advice
 │
 ├── pages/
-│   └── AnalysisPage.tsx      ← лейаут: форма слева, результат справа
+│   ├── AnalysisPage.tsx       ← лейаут: форма слева, результат справа (seeker 1:1)
+│   ├── HRBatchPage.tsx        ← лейаут HR batch анализа
+│   └── JobSeekPage.tsx        ← лейаут: SeekForm слева, VacancyResultList справа
 │
 ├── app/
-│   └── App.tsx               ← QueryClientProvider + AnalysisPage
+│   └── App.tsx                ← QueryClientProvider + роутинг по AppMode
+│                                 'seeker' → AnalysisPage
+│                                 'search' → JobSeekPage
+│                                 'hr'     → HRBatchPage
 │
-├── lib/utils.ts              ← cn() утилита от shadcn
-└── index.css                 ← Tailwind v4 + shadcn переменные
+├── lib/utils.ts               ← cn() утилита от shadcn
+└── index.css                  ← Tailwind v4 + shadcn переменные
 ```
 
 ---
@@ -154,6 +175,32 @@ server: {
 
 ---
 
+## Режим "Поиск работы" (seek)
+
+```
+useSeekVacancies.ts
+  └── fetch('/api/seek', { method: 'POST', body: filters })
+        читает SSE поток:
+          resume_parsed → seekStore.setResumeParsed(skills, seniority)
+          search_done   → seekStore.setSearchDone(total, query)
+          result        → seekStore.addResult(vacancy)  ← сортировка по score внутри
+          done          → seekStore.setDone()
+          error         → seekStore.setError()
+
+seekStore.ts
+  addResult: (result) => set((s) => ({
+    results: [...s.results, result].sort((a, b) => b.match_score - a.match_score)
+    //      ↑ real-time сортировка — каждая новая карточка встаёт на своё место
+  }))
+```
+
+**VacancyResultList** — карточки потоком:
+- Пока `status === 'loading'`: пульсирующий статус (Анализируем резюме… → Ищем вакансии… → Анализируем N вакансий…)
+- Карточки появляются по одной по мере готовности и сразу сортируются
+- Decision labels (для seekers): `strong_match` / `worth_considering` / `weak_match`
+- Score bar: зелёный ≥75%, жёлтый ≥50%, серый <50%
+- `[Показать анализ]` → expand с полным текстом advice от LLM
+
 ## Pipeline Inspector
 
 Коллапсируемый блок в нижней части результата. Показывает:
@@ -169,22 +216,50 @@ server: {
 
 ## UI — что видит пользователь
 
+**Хедер** (общий для всех режимов):
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              AI Job Match Assistant                         │
-├──────────────────────────┬──────────────────────────────────┤
+AI Job Match Assistant     [Анализ 1:1] [Поиск работы] [HR]
+```
+
+**Анализ 1:1** (AnalysisPage):
+```
+┌──────────────────────────┬──────────────────────────────────┐
 │  Резюме                  │  ○ Parsing resume & vacancy      │
 │  [Текст][hh.ru][PDF]     │  ○ Analyzing skill gaps          │
-│  textarea / url / drop   │  ⏳ Generating advice...         │
-│                          │                                  │
-│  Вакансия                │  Match: 40% ████░░               │
-│  [URL hh/LinkedIn][Текст]│  [middle] [python✓] [rag✗]       │
-│  https://hh.ru/vacancy/… │                                  │
-│                          │  ## Overall Assessment           │
-│  [Анализировать →]       │  Your profile matches 40%...     │
-│                          │                                  │
+│  Вакансия                │  ⏳ Generating advice...         │
+│  [URL hh/LinkedIn][Текст]│  Match: 40%  [python✓] [rag✗]   │
+│  [Анализировать →]       │  ## Overall Assessment...        │
 │                          │  ▶ Pipeline Inspector            │
 └──────────────────────────┴──────────────────────────────────┘
+```
+
+**Поиск работы** (JobSeekPage):
+```
+┌──────────────────────────┬──────────────────────────────────┐
+│  Резюме [Текст][PDF]     │  ● Анализируем резюме…           │
+│  Должность: Python Dev   │  Скиллы: FastAPI PostgreSQL ...  │
+│  Город: [Москва ▼]       │                                  │
+│  Опыт:  [3-6 лет ▼]      │  #1 Python Developer · Домклик  │
+│  З/п от: 150000          │      [████████░░] 75% Сильный    │
+│  [x] Удалённо            │      ✓ FastAPI  ✗ Kafka          │
+│  Кол-во: [10 ▼]          │      [Показать анализ]           │
+│                          │                                  │
+│  [Найти вакансии →]      │  #2 Backend Engineer · Яндекс   │
+│                          │      [██████░░░░] 60% Стоит...   │
+└──────────────────────────┴──────────────────────────────────┘
+```
+
+**HR batch** (HRBatchPage):
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Вакансия [URL][Текст]   Резюме PDF (drag & drop, ×N)       │
+│  [Загрузить]             candidate1.pdf ✓  candidate2.pdf ✓ │
+│  [Анализировать 3 кандидатов]                               │
+│  ────────────────────────────────────────────────────────── │
+│  #  Имя              Score  Decision     Навыки             │
+│  1  candidate2.pdf   85%    [Hire]       Python FastAPI ...  │
+│  2  candidate1.pdf   60%    [Borderline] Python             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---

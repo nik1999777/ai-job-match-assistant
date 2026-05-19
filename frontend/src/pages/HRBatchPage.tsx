@@ -1,7 +1,7 @@
 import { BatchForm } from '../widgets/BatchForm'
 import { ModeToggle } from '../components/ModeToggle'
 
-type AppMode = 'seeker' | 'hr'
+type AppMode = 'seeker' | 'search' | 'hr'
 
 interface Props {
   onModeChange: (m: AppMode) => void

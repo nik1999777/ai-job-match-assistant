@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnalysisPage } from '../pages/AnalysisPage'
+import { JobSeekPage } from '../pages/JobSeekPage'
 import { HRBatchPage } from '../pages/HRBatchPage'
 
-type AppMode = 'seeker' | 'hr'
+type AppMode = 'seeker' | 'search' | 'hr'
 
 const queryClient = new QueryClient()
 
@@ -12,10 +13,9 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {mode === 'seeker'
-        ? <AnalysisPage onModeChange={setMode} />
-        : <HRBatchPage onModeChange={setMode} />
-      }
+      {mode === 'seeker' && <AnalysisPage onModeChange={setMode} />}
+      {mode === 'search' && <JobSeekPage   onModeChange={setMode} />}
+      {mode === 'hr'     && <HRBatchPage   onModeChange={setMode} />}
     </QueryClientProvider>
   )
 }

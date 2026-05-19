@@ -10,9 +10,13 @@ api/
 ├── settings.py      ← переменные окружения (как dotenv + config object)
 │
 ├── routes/          ← роуты (как routes/ в Express)
-│   ├── analyze.py       ← POST /api/analyze — SSE стриминг
+│   ├── analyze.py       ← POST /api/analyze — SSE стриминг (1 резюме × 1 вакансия)
 │   │                      принимает: resume/resume_url + vacancy/vacancy_url + mode
 │   │                      auto-detect платформы (hh.ru vs linkedin.com)
+│   ├── seek.py          ← POST /api/seek — SSE поиск вакансий по резюме
+│   │                      принимает: resume + filters (job_title, area, experience,
+│   │                                salary_from, remote, count)
+│   │                      flow: parse resume → search → N×LangGraph → stream results
 │   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
 │   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — URL → текст вакансии
 │   │                      hh.ru: официальный API + Playwright fallback
@@ -41,9 +45,17 @@ api/
 │   └── retriever.py   ← hybrid search RRF, возвращает top-k вакансий
 │
 ├── clients/
-│   ├── hh_client.py      ← Playwright: вакансии hh.ru (bypass DDoS Guard)
-│   ├── resume_parser.py  ← Playwright: hh.ru профиль; PyMuPDF: PDF → текст
-│   └── linkedin_client.py ← Playwright + stealth JS: вакансии LinkedIn
+│   ├── hh_client.py         ← get_vacancy_by_url (API + Playwright fallback)
+│   │                           search_vacancies (params: query, area, experience,
+│   │                           salary_from, schedule) — используется HHOAuthSearchProvider
+│   ├── vacancy_search.py    ← VacancySearchProvider Protocol + реализации:
+│   │                           HHPlaywrightSearchProvider — scrapes hh.ru search page
+│   │                             (1 Playwright сеанс, JS evaluate, без auth)
+│   │                           HHOAuthSearchProvider     — api.hh.ru с токеном (stub)
+│   │                           LinkedInSearchProvider    — LinkedIn/Apify (stub)
+│   │                           get_search_provider()     — фабрика (единая точка смены)
+│   ├── resume_parser.py     ← Playwright: hh.ru профиль; PyMuPDF: PDF → текст
+│   └── linkedin_client.py   ← Playwright + stealth JS: вакансии LinkedIn
 │
 └── db/
     └── models.py      ← PostgreSQL: таблицы Session + Analysis (SQLAlchemy)
@@ -220,17 +232,44 @@ await db.refresh(analysis) # перечитываем чтобы получит�
 
 ```python
 # api/clients/hh_client.py
-# Вакансии — публичный доступ, без авторизации
-async def get_vacancy(vacancy_id: str) -> dict:
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"https://api.hh.ru/vacancies/{vacancy_id}")
-        return resp.json()    # hh.ru возвращает JSON
+# GET /vacancies/{id} — работает без авторизации
+async def get_vacancy(vacancy_id: str) -> dict: ...
 
-# hh.ru отдаёт description в HTML → чистим regex
-def vacancy_to_text(data: dict) -> str:
-    html = data.get("description", "")
-    return re.sub(r"<[^>]+>", " ", html).strip()
-    # JS аналог: html.replace(/<[^>]+>/g, ' ').trim()
+# GET /vacancies?text=... — требует OAuth-приложения (403 без токена)
+# Используется только в HHOAuthSearchProvider
+async def search_vacancies(query, area, per_page, experience, salary_from, schedule) -> list[dict]: ...
+
+# vacancy_to_text: dict → plain text (HTML → regex strip)
+```
+
+## VacancySearchProvider — абстракция поиска
+
+```python
+# api/clients/vacancy_search.py — Open/Closed principle
+class VacancySearchProvider(Protocol):
+    async def search(self, filters: SearchFilters) -> list[VacancyItem]: ...
+
+# Меняем только get_search_provider() при подключении нового источника:
+def get_search_provider() -> VacancySearchProvider:
+    return HHPlaywrightSearchProvider()   # сейчас
+    # return HHOAuthSearchProvider()      # после регистрации app hh.ru
+    # return LinkedInSearchProvider()     # после подключения LinkedIn API
+```
+
+**HHPlaywrightSearchProvider** — текущая реализация:
+1. Playwright открывает `https://hh.ru/search/vacancy?text=...&area=...`
+2. `page.evaluate(JS)` — за один вызов достаёт все карточки: id, title, company, address, exp
+3. Возвращает `VacancyItem[]` — никаких дополнительных запросов
+
+**SearchFilters:**
+```python
+class SearchFilters(BaseModel):
+    query: str           # запрос (job title или auto из resume skills)
+    area: int = 1        # 1=Москва, 2=СПб, 113=вся Россия
+    experience: str | None  # noExperience|between1And3|between3And6|moreThan6
+    salary_from: int | None
+    remote: bool = False
+    count: int = 10      # макс 20
 ```
 
 ---

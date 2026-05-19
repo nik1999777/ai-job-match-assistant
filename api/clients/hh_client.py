@@ -117,17 +117,26 @@ async def get_vacancy_by_url(url_or_id: str) -> tuple[str, dict[str, Any]]:
 
 async def search_vacancies(
     query: str,
-    area: int = 1,  # 1 = Москва, 2 = Санкт-Петербург, 0 = Россия
-    per_page: int = 100,
+    area: int = 1,       # 1=Москва, 2=СПб, 113=вся Россия
+    per_page: int = 20,
     page: int = 0,
+    experience: str | None = None,   # noExperience|between1And3|between3And6|moreThan6
+    salary_from: int | None = None,
+    schedule: str | None = None,     # "remote" для удалёнки
 ) -> list[dict[str, Any]]:
-    params = {
+    params: dict[str, Any] = {
         "text": query,
         "area": area,
         "per_page": per_page,
         "page": page,
-        "only_with_salary": False,
     }
+    if experience:
+        params["experience"] = experience
+    if salary_from:
+        params["salary"] = salary_from
+        params["only_with_salary"] = True
+    if schedule:
+        params["schedule"] = schedule
     async with httpx.AsyncClient(headers=_HEADERS, timeout=15.0) as client:
         resp = await client.get(f"{HH_API_BASE}/vacancies", params=params)
         resp.raise_for_status()

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.db.models import init_db
-from api.routes import analyze, batch, fetch_vacancy, health, parse_resume
+from api.routes import analyze, batch, fetch_vacancy, health, parse_resume, seek
 from api.settings import settings
 
 
@@ -32,3 +32,4 @@ app.include_router(analyze.router)
 app.include_router(batch.router)
 app.include_router(fetch_vacancy.router)
 app.include_router(parse_resume.router)
+app.include_router(seek.router)

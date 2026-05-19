@@ -71,8 +71,12 @@ async def run_graph(graph, resume: str, vacancy: str, mode: str = "seeker") -> d
     return final_state
 
 
-def _sse(payload: str) -> bytes:
+def sse_encode(payload: str) -> bytes:
     return f"data: {payload}\n\n".encode()
+
+
+# backwards-compat alias used internally
+_sse = sse_encode
 
 
 def _serialisable(state: dict[str, Any]) -> dict[str, Any]:
