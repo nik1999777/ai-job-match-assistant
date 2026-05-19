@@ -43,10 +43,13 @@ async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
     matched_tokens = set(resume_exp) & set(vacancy_exp)
 
     # found: original resume skill names that matched
-    found = sorted({resume_exp[t] for t in matched_tokens})
+    found = sorted({resume_exp[t] for t in matched_tokens if len(resume_exp[t]) > 1})
     # missing: original vacancy skill names with no match
     matched_vacancy_originals = {vacancy_exp[t] for t in matched_tokens}
-    missing = sorted(set(vacancy_skills) - matched_vacancy_originals)
+    missing = sorted(
+        s for s in set(vacancy_skills) - matched_vacancy_originals
+        if len(s) > 1
+    )
 
     match_score = len(matched_tokens) / max(len(vacancy_exp), 1)
 
