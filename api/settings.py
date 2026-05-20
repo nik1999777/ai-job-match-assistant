@@ -5,6 +5,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     llm_provider: str = "openai"
+    llm_temperature: float = 0.0
+    resume_context_limit: int = 4000
+    vacancy_context_limit: int = 2000
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     ollama_base_url: str = "http://localhost:11434"

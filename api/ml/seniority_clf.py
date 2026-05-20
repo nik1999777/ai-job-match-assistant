@@ -11,8 +11,10 @@ MAX_CHARS = 600
 
 @cache
 def _get_zs_pipeline():
-    from transformers import pipeline
-    return pipeline("zero-shot-classification", model=ZS_MODEL)
+    from transformers import XLMRobertaTokenizer, pipeline
+    # AutoTokenizer fails for xlm-roberta in transformers>=4.47 — load slow tokenizer explicitly
+    tokenizer = XLMRobertaTokenizer.from_pretrained(ZS_MODEL)
+    return pipeline("zero-shot-classification", model=ZS_MODEL, tokenizer=tokenizer)
 
 
 class SeniorityClassifier:

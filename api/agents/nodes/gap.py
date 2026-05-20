@@ -8,16 +8,15 @@ from api.rag.retriever import retrieve_similar_vacancies
 _skill_extractor = SkillExtractor()
 _seniority_clf = SeniorityClassifier()
 
-# split "LangChain/LangGraph or analogues (Milvus, Qdrant)" → individual terms
-_SEP = re.compile(r"[/,;()\[\]|]|\s+(?:or|and|analogues?)\s+", re.IGNORECASE)
+# punctuation-only split — semantic splitting is handled by the LLM in parse_node
+_SEP = re.compile(r"[/,;()\[\]|]")
 
 
 def _expand(skills: list[str]) -> dict[str, str]:
-    """Return {lowercase_token: original_skill_name} expanding compound strings."""
     result: dict[str, str] = {}
     for skill in skills:
         for part in _SEP.split(skill):
-            part = part.strip(" .-_")
+            part = part.strip(" .-_+")
             if len(part) > 1:
                 result[part.lower()] = skill
     return result

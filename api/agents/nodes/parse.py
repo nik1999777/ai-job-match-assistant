@@ -5,27 +5,19 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from api.llm.provider import get_llm
+from api.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# llama3 via Ollama has a 8k context window; cap inputs to stay well within it
-_RESUME_LIMIT = 4000
-_VACANCY_LIMIT = 2000
 
 _SKILL_KWS = frozenset([
     "навык", "skill", "стек", "stack", "технолог",
     "инструмент", "tools", "компетенц", "владею",
 ])
-_SKILL_WINDOW = 40  # lines to capture after the skills section header
+_SKILL_WINDOW = 40  # ~40 lines covers a typical skills section without grabbing unrelated content
 
 
-def smart_truncate_resume(text: str, limit: int = _RESUME_LIMIT) -> str:
-    """Truncate resume to limit characters, keeping the skills section near the top.
-
-    Plain slicing can cut mid-skills-section when skills appear late in the text.
-    This function moves the skills block to the front before truncating so the LLM
-    always sees the full list of technologies.
-    """
+def smart_truncate_resume(text: str, limit: int) -> str:
+    # skills block moved to front so it survives truncation when it appears late in the resume
     if len(text) <= limit:
         return text
 
@@ -49,15 +41,20 @@ class ParsedData(BaseModel):
     vacancy_summary: str = Field(description="1-2 sentence summary of the job requirements")
     resume_skills: list[str] = Field(
         description=(
-            "Base technical skills from the resume. Normalize to root technology: "
-            "'react-router' → 'React', 'axios' → 'REST API', 'Apollo Client' → 'GraphQL'. "
+            "Individual technical skills — one skill per list item. "
+            "Split compound strings: 'TypeScript + React' → ['TypeScript', 'React'], "
+            "'Python/Go' → ['Python', 'Go']. "
+            "Normalize to root technology: 'react-router' → 'React', 'axios' → 'REST API'. "
             "Strip versions: 'React 18' → 'React'. No duplicates."
         )
     )
     vacancy_skills: list[str] = Field(
         description=(
-            "Base technical skills required by the vacancy. Same normalization rules: "
-            "'React 19' → 'React', 'Node.js 20' → 'Node.js'. No duplicates."
+            "Individual technical skills required by the vacancy — one skill per list item. "
+            "Split compound strings: 'TypeScript + React' → ['TypeScript', 'React'], "
+            "'Python/Go' → ['Python', 'Go']. "
+            "Normalize to root technology: 'React 19' → 'React', 'Node.js 20' → 'Node.js'. "
+            "No duplicates."
         )
     )
     vacancy_seniority_hint: Literal["junior", "middle", "senior", "not specified"]
@@ -76,8 +73,8 @@ VACANCY:
 
 
 async def parse_node(state: dict[str, Any]) -> dict[str, Any]:
-    resume = smart_truncate_resume(state["resume"], _RESUME_LIMIT)
-    vacancy = state["vacancy"][:_VACANCY_LIMIT]
+    resume = smart_truncate_resume(state["resume"], settings.resume_context_limit)
+    vacancy = state["vacancy"][:settings.vacancy_context_limit]
 
     llm = get_llm()
     chain = PROMPT | llm.with_structured_output(ParsedData)
