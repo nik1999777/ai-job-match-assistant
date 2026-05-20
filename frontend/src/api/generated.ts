@@ -16,7 +16,6 @@ import type {
 
 export interface AnalyzeRequest {
   resume?: string | null;
-  resume_url?: string | null;
   vacancy?: string | null;
   vacancy_url?: string | null;
   mode?: string;

@@ -7,20 +7,18 @@
 ```
 api/
 ├── main.py          ← точка входа (как index.js в Express)
+│                      lifespan: init_db() + browser_pool.start()/stop()
 ├── settings.py      ← переменные окружения (как dotenv + config object)
 │
 ├── routes/          ← роуты (как routes/ в Express)
 │   ├── analyze.py       ← POST /api/analyze — SSE стриминг (1 резюме × 1 вакансия)
-│   │                      принимает: resume/resume_url + vacancy/vacancy_url + mode
-│   │                      auto-detect платформы (hh.ru vs linkedin.com)
+│   │                      принимает: resume (текст) + vacancy/vacancy_url + mode
 │   ├── seek.py          ← POST /api/seek — SSE поиск вакансий по резюме
-│   │                      принимает: resume + filters (job_title, area, experience,
-│   │                                salary_from, remote, count)
-│   │                      flow: parse resume → search → N×LangGraph → stream results
+│   │                      flow: parse resume → Playwright search → enrich via API
+│   │                            → N×LangGraph параллельно → stream results
 │   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
-│   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — URL → текст вакансии
-│   │                      hh.ru: официальный API + Playwright fallback
-│   │                      LinkedIn: Playwright stealth
+│   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — hh.ru URL → текст вакансии
+│   │                      официальный API + Playwright fallback
 │   ├── batch.py         ← POST /api/batch — пакетный анализ (mode=hr, макс 20)
 │   └── health.py        ← GET  /health   — healthcheck DB + Qdrant
 │
@@ -28,6 +26,7 @@ api/
 │   ├── graph.py     ← собирает граф из трёх узлов
 │   └── nodes/
 │       ├── parse.py   ← узел 1: LLM → структурированный JSON из резюме/вакансии
+│       │                smart_truncate_resume() — приоритет секции навыков при обрезке
 │       ├── gap.py     ← узел 2: ML навыки + RAG похожие вакансии
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
@@ -45,17 +44,18 @@ api/
 │   └── retriever.py   ← hybrid search RRF, возвращает top-k вакансий
 │
 ├── clients/
-│   ├── hh_client.py         ← get_vacancy_by_url (API + Playwright fallback)
-│   │                           search_vacancies (params: query, area, experience,
-│   │                           salary_from, schedule) — используется HHOAuthSearchProvider
+│   ├── browser_pool.py      ← shared Playwright browser (singleton на весь lifecycle сервера)
+│   │                           get_page() — context manager, изолированный context на запрос
+│   │                           fallback: ephemeral browser если pool не инициализирован
+│   ├── hh_client.py         ← get_vacancy_by_url (официальный API + Playwright fallback)
+│   │                           get_vacancy(id) — без auth, используется в seek enrich
 │   ├── vacancy_search.py    ← VacancySearchProvider Protocol + реализации:
 │   │                           HHPlaywrightSearchProvider — scrapes hh.ru search page
-│   │                             (1 Playwright сеанс, JS evaluate, без auth)
 │   │                           HHOAuthSearchProvider     — api.hh.ru с токеном (stub)
-│   │                           LinkedInSearchProvider    — LinkedIn/Apify (stub)
 │   │                           get_search_provider()     — фабрика (единая точка смены)
-│   ├── resume_parser.py     ← Playwright: hh.ru профиль; PyMuPDF: PDF → текст
-│   └── linkedin_client.py   ← Playwright + stealth JS: вакансии LinkedIn
+│   └── resume_parser.py     ← PDF → текст (PyMuPDF)
+│                               get_text("blocks") + сортировка по позиции (multi-column fix)
+│                               фильтрация шума: номера страниц, повторяющиеся шапки
 │
 └── db/
     └── models.py      ← PostgreSQL: таблицы Session + Analysis (SQLAlchemy)
@@ -249,17 +249,15 @@ async def search_vacancies(query, area, per_page, experience, salary_from, sched
 class VacancySearchProvider(Protocol):
     async def search(self, filters: SearchFilters) -> list[VacancyItem]: ...
 
-# Меняем только get_search_provider() при подключении нового источника:
 def get_search_provider() -> VacancySearchProvider:
-    return HHPlaywrightSearchProvider()   # сейчас
-    # return HHOAuthSearchProvider()      # после регистрации app hh.ru
-    # return LinkedInSearchProvider()     # после подключения LinkedIn API
+    return HHPlaywrightSearchProvider()
+    # return HHOAuthSearchProvider()   # после регистрации app hh.ru
 ```
 
-**HHPlaywrightSearchProvider** — текущая реализация:
-1. Playwright открывает `https://hh.ru/search/vacancy?text=...&area=...`
-2. `page.evaluate(JS)` — за один вызов достаёт все карточки: id, title, company, address, exp
-3. Возвращает `VacancyItem[]` — никаких дополнительных запросов
+**Seek flow (api/routes/seek.py):**
+1. `HHPlaywrightSearchProvider.search()` — Playwright открывает страницу поиска, JS evaluate достаёт карточки (id, title, company, address, exp)
+2. **Enrich** — для каждой карточки параллельно вызывается `get_vacancy(id)` через официальный API (без auth) → полный текст + key_skills + зарплата. Семафор 5 — не ддосим hh.ru
+3. Теперь `item.text` содержит полное описание → `gap_node` видит реальные требования → `match_score` ненулевой
 
 **SearchFilters:**
 ```python

@@ -6,7 +6,7 @@ import { useAnalyze } from '../hooks/useAnalyze'
 import { useUploadResume } from '../hooks/useUploadResume'
 import { useAnalysisStore } from '../store/analysisStore'
 
-type ResumeTab = 'text' | 'hh' | 'pdf'
+type ResumeTab = 'text' | 'pdf'
 type VacancyTab = 'url' | 'text'
 
 function TabBar<T extends string>({ tabs, active, onSelect, disabled }: {
@@ -37,21 +37,6 @@ function TabBar<T extends string>({ tabs, active, onSelect, disabled }: {
   )
 }
 
-function ResumeInput({ disabled }: { disabled: boolean }) {
-  const [tab, setTab] = useState<ResumeTab>('text')
-  const [resumeText, setResumeText] = useState('')
-  const [resumeUrl, setResumeUrl] = useState('')
-
-  const upload = useUploadResume((text) => setResumeText(text))
-
-  const resumeTabs = [
-    { id: 'text' as ResumeTab, label: 'Текст' },
-    { id: 'hh' as ResumeTab,   label: 'hh.ru профиль' },
-    { id: 'pdf' as ResumeTab,  label: 'PDF' },
-  ]
-
-  return { tab, resumeText, setResumeText, resumeUrl, setResumeUrl, upload, resumeTabs }
-}
 
 export function AnalyzeForm() {
   const { analyze, reset } = useAnalyze()
@@ -61,19 +46,19 @@ export function AnalyzeForm() {
 
   const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
   const [resumeText, setResumeText] = useState('')
-  const [resumeUrl, setResumeUrl] = useState('')
   const [vacancyTab, setVacancyTab] = useState<VacancyTab>('url')
   const [vacancyUrl, setVacancyUrl] = useState('')
   const [vacancyText, setVacancyText] = useState('')
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [pdfName, setPdfName] = useState('')
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   const upload = useUploadResume((text) => {
     setResumeText(text)
     setPdfStatus('done')
   })
 
-  const hasResume = resumeText.trim() || resumeUrl.trim()
+  const hasResume = resumeText.trim()
   const hasVacancy = vacancyTab === 'url' ? vacancyUrl.trim() : vacancyText.trim()
 
   function handleSubmit(e: React.SyntheticEvent) {
@@ -81,7 +66,6 @@ export function AnalyzeForm() {
     if (!hasResume || !hasVacancy) return
     analyze({
       resume: resumeText.trim() || undefined,
-      resume_url: resumeUrl.trim() || undefined,
       vacancy_url: vacancyTab === 'url' ? vacancyUrl.trim() : undefined,
       vacancy: vacancyTab === 'text' ? vacancyText.trim() : undefined,
     })
@@ -89,12 +73,11 @@ export function AnalyzeForm() {
 
   const resumeTabs = [
     { id: 'text' as ResumeTab, label: 'Текст' },
-    { id: 'hh' as ResumeTab,   label: 'hh.ru профиль' },
     { id: 'pdf' as ResumeTab,  label: 'PDF' },
   ]
 
   const vacancyTabs = [
-    { id: 'url' as VacancyTab, label: 'URL (hh.ru / LinkedIn)' },
+    { id: 'url' as VacancyTab, label: 'URL (hh.ru)' },
     { id: 'text' as VacancyTab, label: 'Текст' },
   ]
 
@@ -125,22 +108,6 @@ export function AnalyzeForm() {
           />
         )}
 
-        {resumeTab === 'hh' && (
-          <div className="flex flex-col gap-2">
-            <input
-              type="url"
-              placeholder="https://hh.ru/resume/..."
-              value={resumeUrl}
-              onChange={(e) => setResumeUrl(e.target.value)}
-              disabled={loading}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-            />
-            <p className="text-xs text-muted-foreground">
-              Ссылка на публичное резюме — страница будет открыта через Playwright
-            </p>
-          </div>
-        )}
-
         {resumeTab === 'pdf' && (
           <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input px-4 py-10 cursor-pointer hover:border-primary/50 transition-colors">
             <input
@@ -152,6 +119,7 @@ export function AnalyzeForm() {
                 const f = e.target.files?.[0]
                 if (!f) return
                 setPdfName(f.name)
+                setPdfUrl(URL.createObjectURL(f))
                 setPdfStatus('loading')
                 upload.mutate({ data: { file: f } }, {
                   onError: () => setPdfStatus('error'),
@@ -160,7 +128,15 @@ export function AnalyzeForm() {
             />
             {pdfStatus === 'idle' && <p className="text-sm text-muted-foreground">Нажмите чтобы выбрать PDF</p>}
             {(pdfStatus === 'loading' || upload.isPending) && <p className="text-sm text-muted-foreground">Читаем {pdfName}…</p>}
-            {pdfStatus === 'done' && <p className="text-sm text-green-600">✓ {pdfName} — текст извлечён</p>}
+            {pdfStatus === 'done' && (
+              <p className="text-sm text-green-600">
+                ✓{' '}
+                <a href={pdfUrl!} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline" onClick={(e) => e.stopPropagation()}>
+                  {pdfName}
+                </a>
+                {' '}— текст извлечён
+              </p>
+            )}
             {pdfStatus === 'error' && <p className="text-sm text-red-500">Ошибка парсинга — попробуйте другой PDF</p>}
           </label>
         )}
@@ -174,7 +150,7 @@ export function AnalyzeForm() {
         {vacancyTab === 'url' && (
           <input
             type="url"
-            placeholder="https://hh.ru/vacancy/... или https://linkedin.com/jobs/..."
+            placeholder="https://hh.ru/vacancy/..."
             value={vacancyUrl}
             onChange={(e) => setVacancyUrl(e.target.value)}
             disabled={loading}

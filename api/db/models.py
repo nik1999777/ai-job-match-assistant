@@ -45,8 +45,8 @@ class Analysis(Base):
     seniority: Mapped[str | None] = mapped_column(String(32), nullable=True)
     seniority_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    skills_found: Mapped[str | None] = mapped_column(Text, nullable=True)   # JSON list
-    skills_missing: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    skills_found: Mapped[str | None] = mapped_column(Text, nullable=True)
+    skills_missing: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     llm_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     decision: Mapped[HiringDecision | None] = mapped_column(

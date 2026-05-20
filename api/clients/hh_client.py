@@ -101,16 +101,12 @@ async def get_vacancy_by_url(url_or_id: str) -> tuple[str, dict[str, Any]]:
         pass
 
     # fallback: Playwright (handles DDoS Guard, login walls, etc.)
-    from playwright.async_api import async_playwright
+    from api.clients.browser_pool import get_page
 
     target_url = f"https://hh.ru/vacancy/{vacancy_id}"
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        ctx = await browser.new_context(user_agent=_HEADERS["User-Agent"])
-        page = await ctx.new_page()
+    async with get_page(user_agent=_HEADERS["User-Agent"]) as page:
         await page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
         data = await _page_to_vacancy_data(page)
-        await browser.close()
 
     return vacancy_to_text(data), data
 

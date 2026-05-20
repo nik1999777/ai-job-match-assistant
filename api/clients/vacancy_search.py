@@ -14,7 +14,7 @@ class SearchFilters(BaseModel):
     experience: str | None = None    # noExperience|between1And3|between3And6|moreThan6
     salary_from: int | None = None
     remote: bool = False
-    count: int = 10                  # сколько вакансий анализировать (макс 20)
+    count: int = 10
 
 
 class VacancyItem(BaseModel):
@@ -60,7 +60,7 @@ class HHPlaywrightSearchProvider:
     """
 
     async def search(self, filters: SearchFilters) -> list[VacancyItem]:
-        from playwright.async_api import async_playwright
+        from api.clients.browser_pool import get_page
         from api.clients.hh_client import _HEADERS
 
         params: dict[str, Any] = {
@@ -78,13 +78,9 @@ class HHPlaywrightSearchProvider:
 
         search_url = "https://hh.ru/search/vacancy?" + urlencode(params)
 
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
-            ctx = await browser.new_context(user_agent=_HEADERS["User-Agent"])
-            page = await ctx.new_page()
+        async with get_page(user_agent=_HEADERS["User-Agent"]) as page:
             await page.goto(search_url, wait_until="domcontentloaded", timeout=30_000)
             raw_cards: list[dict[str, Any]] = await page.evaluate(_EXTRACT_JS)
-            await browser.close()
 
         items = []
         for card in raw_cards[: filters.count]:
@@ -119,24 +115,9 @@ class HHOAuthSearchProvider:
         return [_raw_to_item(r) for r in raw[: filters.count]]
 
 
-class LinkedInSearchProvider:
-    """LinkedIn Jobs API или Apify scraper. TODO: реализовать."""
-
-    async def search(self, filters: SearchFilters) -> list[VacancyItem]:
-        raise NotImplementedError("LinkedIn provider not configured")
-
-
 def get_search_provider() -> VacancySearchProvider:
-    """Возвращает нужный провайдер на основе доступных ключей.
-
-    Меняется только здесь при подключении OAuth или LinkedIn API.
-    TODO: settings.hh_access_token → HHOAuthSearchProvider
-    TODO: settings.linkedin_api_key → LinkedInSearchProvider
-    """
     return HHPlaywrightSearchProvider()
 
-
-# ── helpers ──────────────────────────────────────────────────────────────────
 
 def _raw_to_item(raw: dict[str, Any]) -> VacancyItem:
     vacancy_id = str(raw.get("id", ""))
@@ -148,7 +129,7 @@ def _raw_to_item(raw: dict[str, Any]) -> VacancyItem:
         company=company,
         url=f"https://hh.ru/vacancy/{vacancy_id}",
         text=_build_text(raw, title, company),
-        salary_str=_format_salary(raw.get("salary")),
+        salary_str=format_salary(raw.get("salary")),
     )
 
 
@@ -182,7 +163,7 @@ def _build_text(raw: dict[str, Any], title: str, company: str) -> str:
     return "\n\n".join(parts)
 
 
-def _format_salary(salary: dict[str, Any] | None) -> str | None:
+def format_salary(salary: dict[str, Any] | None) -> str | None:
     if not salary:
         return None
     lo, hi, cur = salary.get("from"), salary.get("to"), salary.get("currency", "RUB")

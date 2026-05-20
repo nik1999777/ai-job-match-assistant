@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.clients import browser_pool
 from api.db.models import init_db
 from api.routes import analyze, batch, fetch_vacancy, health, parse_resume, seek
 from api.settings import settings
@@ -11,7 +12,9 @@ from api.settings import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await browser_pool.start()
     yield
+    await browser_pool.stop()
 
 
 app = FastAPI(

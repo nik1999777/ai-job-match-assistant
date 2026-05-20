@@ -6,14 +6,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.agents.graph import build_graph
-from api.agents.nodes.parse import PROMPT, ParsedData
-from api.clients.vacancy_search import SearchFilters, get_search_provider
+from api.agents.nodes.parse import PROMPT, ParsedData, smart_truncate_resume
+from api.clients.hh_client import get_vacancy, vacancy_to_text
+from api.clients.vacancy_search import SearchFilters, format_salary, get_search_provider
 from api.llm.provider import get_llm
 from api.llm.streaming import run_graph, sse_encode
 
 router = APIRouter(prefix="/api", tags=["seek"])
 
-_RESUME_LIMIT = 4000
+_HH_SEM = asyncio.Semaphore(5)  # не ддосим hh.ru при обогащении
 
 
 class SeekRequest(BaseModel):
@@ -23,7 +24,7 @@ class SeekRequest(BaseModel):
     experience: str | None = None
     salary_from: int | None = None
     remote: bool = False
-    count: int = 10                  # сколько вакансий анализировать
+    count: int = 10
 
 
 @router.post("/seek")
@@ -33,13 +34,12 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
 
         async def worker() -> None:
             try:
-                # 1. Парсим резюме — достаём скиллы и уровень
                 await queue.put({"event": "status", "message": "Анализируем резюме…"})
                 llm = get_llm()
                 chain = PROMPT | llm.with_structured_output(ParsedData)
                 try:
                     parsed: ParsedData = await chain.ainvoke({
-                        "resume": body.resume[:_RESUME_LIMIT],
+                        "resume": smart_truncate_resume(body.resume),
                         "vacancy": body.job_title or "Software Engineer",
                     })
                     skills = parsed.resume_skills
@@ -54,7 +54,6 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                     "seniority": seniority,
                 })
 
-                # 2. Ищем вакансии
                 query = body.job_title.strip() or " ".join(skills[:5]) or "Python Developer"
                 await queue.put({"event": "status", "message": f"Ищем вакансии: «{query}»…"})
 
@@ -69,18 +68,33 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                 )
                 items = await provider.search(filters)
 
+                if not items:
+                    await queue.put({"event": "done", "total": 0})
+                    await queue.put(None)
+                    return
+
+                await queue.put({
+                    "event": "status",
+                    "message": f"Загружаем детали {len(items)} вакансий…",
+                })
+
+                async def enrich(item) -> None:
+                    async with _HH_SEM:
+                        try:
+                            data = await get_vacancy(item.id)
+                            item.text = vacancy_to_text(data)
+                            item.salary_str = format_salary(data.get("salary"))
+                        except Exception:
+                            pass  # оставляем данные карточки поиска как fallback
+
+                await asyncio.gather(*[enrich(i) for i in items])
+
                 await queue.put({
                     "event": "search_done",
                     "total": len(items),
                     "query": query,
                 })
 
-                if not items:
-                    await queue.put({"event": "done", "total": 0})
-                    await queue.put(None)
-                    return
-
-                # 3. Анализируем параллельно, стримим результаты по мере готовности
                 await queue.put({
                     "event": "status",
                     "message": f"Анализируем {len(items)} вакансий…",

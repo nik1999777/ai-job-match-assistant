@@ -34,6 +34,7 @@ export function SeekForm() {
   const [resumeText, setResumeText] = useState('')
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [pdfName, setPdfName] = useState('')
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   const [jobTitle, setJobTitle] = useState('')
   const [area, setArea] = useState(1)
@@ -110,13 +111,22 @@ export function SeekForm() {
                 const f = e.target.files?.[0]
                 if (!f) return
                 setPdfName(f.name)
+                setPdfUrl(URL.createObjectURL(f))
                 setPdfStatus('loading')
                 upload.mutate({ data: { file: f } }, { onError: () => setPdfStatus('error') })
               }}
             />
             {pdfStatus === 'idle'    && <p className="text-sm text-muted-foreground">Нажмите чтобы выбрать PDF</p>}
             {pdfStatus === 'loading' && <p className="text-sm text-muted-foreground">Читаем {pdfName}…</p>}
-            {pdfStatus === 'done'    && <p className="text-sm text-green-600">✓ {pdfName} — текст извлечён</p>}
+            {pdfStatus === 'done'    && (
+              <p className="text-sm text-green-600">
+                ✓{' '}
+                <a href={pdfUrl!} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline" onClick={(e) => e.stopPropagation()}>
+                  {pdfName}
+                </a>
+                {' '}— текст извлечён
+              </p>
+            )}
             {pdfStatus === 'error'   && <p className="text-sm text-red-500">Ошибка парсинга</p>}
           </label>
         )}

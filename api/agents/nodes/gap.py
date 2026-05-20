@@ -26,25 +26,20 @@ def _expand(skills: list[str]) -> dict[str, str]:
 async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
     parsed = state.get("parsed", {})
 
-    # ML: extract skills via fine-tuned BERT NER
     resume_skills = _skill_extractor.extract(state["resume"])
     vacancy_skills = _skill_extractor.extract(state["vacancy"])
 
-    # fall back to LLM-parsed skills if NER returns nothing
     if not resume_skills:
         resume_skills = parsed.get("resume_skills", [])
     if not vacancy_skills:
         vacancy_skills = parsed.get("vacancy_skills", [])
 
-    # expand compound strings ("X/Y or Z") before comparing
     resume_exp = _expand(resume_skills)
     vacancy_exp = _expand(vacancy_skills)
 
     matched_tokens = set(resume_exp) & set(vacancy_exp)
 
-    # found: original resume skill names that matched
     found = sorted({resume_exp[t] for t in matched_tokens if len(resume_exp[t]) > 1})
-    # missing: original vacancy skill names with no match
     matched_vacancy_originals = {vacancy_exp[t] for t in matched_tokens}
     missing = sorted(
         s for s in set(vacancy_skills) - matched_vacancy_originals
@@ -53,10 +48,7 @@ async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
 
     match_score = len(matched_tokens) / max(len(vacancy_exp), 1)
 
-    # ML: seniority classification via DistilBERT + LoRA
     seniority, confidence = _seniority_clf.classify(state["resume"])
-
-    # RAG: pull similar vacancies for context
     similar = await retrieve_similar_vacancies(state["vacancy"], top_k=3)
 
     return {

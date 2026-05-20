@@ -50,11 +50,13 @@ src/
 │   └── PipelineInspector.tsx  ← коллапс-блок: raw inputs + узлы + LLM промпт
 │
 ├── widgets/
-│   ├── AnalyzeForm.tsx        ← форма: резюме (3 таба) + вакансия (2 таба)
+│   ├── AnalyzeForm.tsx        ← форма: резюме (Текст / PDF) + вакансия (URL / Текст)
+│   │                             PDF: после загрузки имя файла — кликабельная ссылка
 │   ├── AnalysisResult.tsx     ← результат анализа, читает analysisStore
 │   ├── BatchForm.tsx          ← HR форма: вакансия + multi-PDF upload
 │   ├── CandidateTable.tsx     ← таблица кандидатов: rank, score, decision, навыки
-│   ├── SeekForm.tsx           ← форма поиска: резюме (text/PDF) + фильтры
+│   ├── SeekForm.tsx           ← форма поиска: резюме (Текст / PDF) + фильтры
+│   │                             PDF: после загрузки имя файла — кликабельная ссылка
 │   │                             job_title, area (Москва/СПб/Россия),
 │   │                             experience, salary_from, remote, count (5/10/15/20)
 │   └── VacancyResultList.tsx  ← карточки вакансий появляются по мере анализа
@@ -225,9 +227,9 @@ AI Job Match Assistant     [Анализ 1:1] [Поиск работы] [HR]
 ```
 ┌──────────────────────────┬──────────────────────────────────┐
 │  Резюме                  │  ○ Parsing resume & vacancy      │
-│  [Текст][hh.ru][PDF]     │  ○ Analyzing skill gaps          │
+│  [Текст][PDF]            │  ○ Analyzing skill gaps          │
 │  Вакансия                │  ⏳ Generating advice...         │
-│  [URL hh/LinkedIn][Текст]│  Match: 40%  [python✓] [rag✗]   │
+│  [URL hh.ru][Текст]      │  Match: 40%  [python✓] [rag✗]   │
 │  [Анализировать →]       │  ## Overall Assessment...        │
 │                          │  ▶ Pipeline Inspector            │
 └──────────────────────────┴──────────────────────────────────┘
@@ -254,6 +256,7 @@ AI Job Match Assistant     [Анализ 1:1] [Поиск работы] [HR]
 ┌─────────────────────────────────────────────────────────────┐
 │  Вакансия [URL][Текст]   Резюме PDF (drag & drop, ×N)       │
 │  [Загрузить]             candidate1.pdf ✓  candidate2.pdf ✓ │
+│                          (имена файлов — кликабельные ссылки)│
 │  [Анализировать 3 кандидатов]                               │
 │  ────────────────────────────────────────────────────────── │
 │  #  Имя              Score  Decision     Навыки             │

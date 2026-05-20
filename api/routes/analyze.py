@@ -7,25 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.agents.graph import build_graph
 from api.clients.hh_client import get_vacancy_by_url
-from api.clients.linkedin_client import get_vacancy_from_linkedin
-from api.clients.resume_parser import get_resume_from_hh_url
 from api.db.models import Analysis, Session, get_session
 from api.llm.streaming import event_stream
 
 router = APIRouter(prefix="/api", tags=["analyze"])
 
 
-def _detect_vacancy_platform(url: str) -> str:
-    if "linkedin.com" in url:
-        return "linkedin"
-    return "hh"  # default: hh.ru
-
-
 class AnalyzeRequest(BaseModel):
-    resume: str | None = None        # plain text (optional if resume_url given)
-    resume_url: str | None = None    # hh.ru profile URL
+    resume: str | None = None
     vacancy: str | None = None       # raw text
-    vacancy_url: str | None = None   # hh.ru or LinkedIn URL
+    vacancy_url: str | None = None   # hh.ru URL
     mode: str = "seeker"             # seeker | hr
 
 
@@ -34,31 +25,16 @@ async def analyze(
     body: AnalyzeRequest,
     db: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
-    # --- resolve resume ---
-    if body.resume_url:
-        try:
-            resume_text = await get_resume_from_hh_url(body.resume_url)
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Failed to fetch resume: {exc}")
-    elif body.resume:
-        resume_text = body.resume
-    else:
-        raise HTTPException(status_code=422, detail="Provide 'resume' text or 'resume_url'")
+    if not body.resume:
+        raise HTTPException(status_code=422, detail="Provide 'resume' text")
+    resume_text = body.resume
 
-    # --- resolve vacancy ---
     if not body.vacancy and not body.vacancy_url:
         raise HTTPException(status_code=422, detail="Provide either 'vacancy' text or 'vacancy_url'")
 
     if body.vacancy_url:
-        platform = _detect_vacancy_platform(body.vacancy_url)
         try:
-            if platform == "linkedin":
-                vacancy_text, _ = await get_vacancy_from_linkedin(body.vacancy_url)
-            else:
-                vacancy_text, _ = await get_vacancy_by_url(body.vacancy_url)
-        except ValueError as exc:
-            # user-friendly scraping failure (e.g. LinkedIn auth wall)
-            raise HTTPException(status_code=400, detail=str(exc))
+            vacancy_text, _ = await get_vacancy_by_url(body.vacancy_url)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Failed to fetch vacancy: {exc}")
     else:

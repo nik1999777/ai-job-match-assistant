@@ -11,6 +11,7 @@ interface Candidate {
   name: string
   text: string
   status: 'parsing' | 'ready' | 'error'
+  url: string
 }
 
 type VacancyTab = 'url' | 'text'
@@ -59,6 +60,7 @@ export function BatchForm() {
       name: f.name.replace(/\.pdf$/i, ''),
       text: '',
       status: 'parsing',
+      url: URL.createObjectURL(f),
     }))
     setCandidates((prev) => [...prev, ...incoming])
 
@@ -123,7 +125,7 @@ export function BatchForm() {
           <label className="text-sm font-medium">Вакансия</label>
           <div className="flex gap-1 border-b mb-1">
             <button type="button" className={tabCls('url')} onClick={() => setVacancyTab('url')} disabled={loading}>
-              URL (hh.ru / LinkedIn)
+              URL (hh.ru)
             </button>
             <button type="button" className={tabCls('text')} onClick={() => setVacancyTab('text')} disabled={loading}>
               Текст
@@ -135,7 +137,7 @@ export function BatchForm() {
               <div className="flex gap-2">
                 <input
                   type="url"
-                  placeholder="https://hh.ru/vacancy/... или https://linkedin.com/jobs/..."
+                  placeholder="https://hh.ru/vacancy/..."
                   value={vacancyUrl}
                   onChange={(e) => { setVacancyUrl(e.target.value); setFetchError('') }}
                   disabled={loading || fetchingVacancy}
@@ -196,7 +198,14 @@ export function BatchForm() {
                     {c.status === 'parsing' && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
                     {c.status === 'ready'   && <span className="text-green-500 text-xs font-bold">✓</span>}
                     {c.status === 'error'   && <span className="text-red-500 text-xs font-bold">✗</span>}
-                    <span className={c.status === 'error' ? 'text-red-500' : ''}>{c.name}</span>
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`underline hover:no-underline ${c.status === 'error' ? 'text-red-500' : ''}`}
+                    >
+                      {c.name}
+                    </a>
                   </span>
                   <button
                     type="button"

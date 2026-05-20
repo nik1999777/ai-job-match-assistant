@@ -14,7 +14,7 @@ export function AnalysisPage({ onModeChange }: Props) {
       <header className="border-b px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">AI Job Match Assistant</h1>
-          <p className="text-sm text-muted-foreground">Вставьте резюме и ссылку на вакансию hh.ru / LinkedIn</p>
+          <p className="text-sm text-muted-foreground">Вставьте резюме и ссылку на вакансию hh.ru</p>
         </div>
         <ModeToggle mode="seeker" onChange={onModeChange} />
       </header>
