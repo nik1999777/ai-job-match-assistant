@@ -28,7 +28,7 @@ async function authRequest(endpoint: string, payload: AuthPayload): Promise<Toke
 export function useRegister() {
   const login = useAuthStore((s) => s.login)
   return useMutation({
-    mutationFn: (payload: AuthPayload) => authRequest('/auth/register', payload),
+    mutationFn: (payload: AuthPayload) => authRequest('/api/auth/register', payload),
     onSuccess: (data) => login(data.access_token, data.user_id, data.email),
   })
 }
@@ -36,7 +36,7 @@ export function useRegister() {
 export function useLogin() {
   const login = useAuthStore((s) => s.login)
   return useMutation({
-    mutationFn: (payload: AuthPayload) => authRequest('/auth/login', payload),
+    mutationFn: (payload: AuthPayload) => authRequest('/api/auth/login', payload),
     onSuccess: (data) => login(data.access_token, data.user_id, data.email),
   })
 }

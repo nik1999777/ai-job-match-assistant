@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth.jwt import create_access_token, hash_password, verify_password
 from api.db.models import User, get_session
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class RegisterRequest(BaseModel):
