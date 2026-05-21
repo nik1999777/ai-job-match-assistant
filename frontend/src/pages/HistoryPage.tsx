@@ -3,10 +3,8 @@ import { useHistory, useDeleteAnalysis, type AnalysisSummary } from '../hooks/us
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 
-type AppMode = 'seeker' | 'search' | 'hr' | 'history'
-
 interface Props {
-  onModeChange: (mode: AppMode) => void
+  onBack: () => void
 }
 
 function ScoreBadge({ score }: { score: number | null }) {
@@ -83,7 +81,7 @@ function AnalysisCard({ item, onDelete }: { item: AnalysisSummary; onDelete: (id
   )
 }
 
-export function HistoryPage({ onModeChange }: Props) {
+export function HistoryPage({ onBack }: Props) {
   const [page, setPage] = useState(1)
   const { data, isLoading, isError } = useHistory(page)
   const deleteMutation = useDeleteAnalysis()
@@ -98,7 +96,7 @@ export function HistoryPage({ onModeChange }: Props) {
             <h1 className="text-2xl font-bold">Analysis History</h1>
             {data && <p className="text-sm text-muted-foreground mt-0.5">{data.total} analyses total</p>}
           </div>
-          <Button variant="outline" size="sm" onClick={() => onModeChange('seeker')}>
+          <Button variant="outline" size="sm" onClick={onBack}>
             ← Back
           </Button>
         </div>
