@@ -9,13 +9,28 @@ api/
 ├── main.py          ← точка входа (как index.js в Express)
 │                      lifespan: init_db() + browser_pool.start()/stop()
 ├── settings.py      ← переменные окружения (как dotenv + config object)
+│                      + JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_MINUTES
+│
+├── auth/            ← JWT аутентификация
+│   ├── jwt.py           ← hash_password, verify_password (bcrypt direct),
+│   │                      create_access_token, decode_token (python-jose)
+│   └── deps.py          ← FastAPI Depends:
+│                          current_user_optional — JWT из Bearer, None если нет токена
+│                          current_user_required — поднимает 401 если нет токена
 │
 ├── routes/          ← роуты (как routes/ в Express)
+│   ├── auth.py          ← POST /api/auth/register → {email, password, role} → JWT
+│   │                      POST /api/auth/login    → {email, password} → JWT
+│   │                      Ответ: {access_token, token_type, user_id, email, role}
 │   ├── analyze.py       ← POST /api/analyze — SSE стриминг (1 резюме × 1 вакансия)
 │   │                      принимает: resume (текст) + vacancy/vacancy_url + mode
+│   │                      user_id из JWT → сохраняется в Session.user_id
 │   ├── seek.py          ← POST /api/seek — SSE поиск вакансий по резюме
 │   │                      flow: parse resume → Playwright search → enrich via API
 │   │                            → N×LangGraph параллельно → stream results
+│   ├── history.py       ← GET  /api/history — список анализов (JWT required)
+│   │                      GET  /api/analyses/{id} — детали анализа (JWT required)
+│   │                      DELETE /api/analyses/{id} — удалить (JWT required)
 │   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
 │   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — hh.ru URL → текст вакансии
 │   │                      официальный API + Playwright fallback
@@ -58,7 +73,8 @@ api/
 │                               фильтрация шума: номера страниц, повторяющиеся шапки
 │
 └── db/
-    └── models.py      ← PostgreSQL: таблицы Session + Analysis (SQLAlchemy)
+    ├── models.py      ← PostgreSQL: User + Session + Analysis (SQLAlchemy async)
+    └── session.py     ← AsyncSession factory (get_session Depends)
 ```
 
 ---
@@ -242,6 +258,44 @@ async def search_vacancies(query, area, per_page, experience, salary_from, sched
 # vacancy_to_text: dict → plain text (HTML → regex strip)
 ```
 
+## Auth — JWT + bcrypt
+
+```python
+# api/auth/jwt.py — bcrypt напрямую, без passlib
+# (passlib несовместима с bcrypt >= 4.x — упадёт с AttributeError на __about__.__version__)
+import bcrypt
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
+
+def create_access_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, settings.jwt_secret, ...)
+```
+
+```python
+# api/auth/deps.py — как middleware в Express, но декларативно через Depends
+_bearer = HTTPBearer(auto_error=False)
+
+# Опциональная авторизация — для /api/analyze (анализ работает и без аккаунта)
+async def current_user_optional(credentials=Depends(_bearer), db=Depends(get_session)) -> User | None:
+    ...
+
+# Обязательная авторизация — для /api/history, /api/analyses/{id}
+async def current_user_required(user=Depends(current_user_optional)) -> User:
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+```
+
+**Почему `current_user_optional` для `/api/analyze`?**  
+Анализ должен работать и для неавторизованных пользователей. Если токен есть — `Session.user_id` заполняется, анализ попадает в историю.
+
+---
+
 ## gap_node — auto-indexing
 
 Каждая проанализированная вакансия автоматически добавляется в Qdrant:
@@ -302,15 +356,18 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 # 3. Установить зависимости (= npm install)
 pip install -r requirements.txt
 
-# 4. Заполнить .env (скопировать из .env.example, добавить OPENAI_API_KEY)
+# 4. Заполнить .env (скопировать из .env.example, добавить OPENAI_API_KEY + JWT_SECRET)
 cp .env.example .env
 
-# 5. Наполнить Qdrant вакансиями с hh.ru
+# 5. Применить миграции БД (создаёт таблицы users, добавляет role к существующим)
+alembic upgrade head
+
+# 6. Наполнить Qdrant вакансиями с hh.ru
 python -m scripts.index_vacancies
 
-# 6. Запустить сервер (= nodemon / node index.js)
+# 7. Запустить сервер (= nodemon / node index.js)
 uvicorn api.main:app --reload --port 8000
 
-# 7. Swagger документация — бесплатно в FastAPI
+# 8. Swagger документация — бесплатно в FastAPI
 # http://localhost:8000/docs
 ```

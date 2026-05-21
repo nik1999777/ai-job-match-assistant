@@ -2,10 +2,12 @@
 
 AI-ассистент для анализа соответствия резюме и вакансии. Строится как портфолио-проект для позиции ML/LLM Engineer в hh.ru AI Lab.
 
-**Три режима:**
-- **Анализ 1:1** — загрузи резюме + вакансию → получи детальный разбор пробелов и карьерный совет
+**Три режима + авторизация:**
+- **Анализ** — загрузи резюме + вакансию → получи детальный разбор пробелов и карьерный совет
 - **Поиск работы** — загрузи резюме → система ищет вакансии на hh.ru и ранжирует по совпадению
 - **HR** — загрузи вакансию + несколько резюме → таблица кандидатов с решением Hire/Borderline/No Hire
+- **История анализов** — все прошлые анализы с возможностью провалиться в детали и удалить
+- **Авторизация** — email+пароль, роль seeker (соискатель) или hr при регистрации. Роль определяет доступные вкладки и режим работы агента
 
 **Стек:** FastAPI · LangGraph · LangChain · Qdrant · PostgreSQL · React 19 · Vite · Zustand · Playwright
 
@@ -64,6 +66,11 @@ DATABASE_URL=postgresql+asyncpg://jobmatch:jobmatch@localhost:5433/jobmatch
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=vacancies
 CORS_ORIGINS=["http://localhost:5173"]
+
+# JWT auth
+JWT_SECRET=your-secret-key-here
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=10080
 ```
 
 ### 3. Запустить инфраструктуру
@@ -72,10 +79,14 @@ CORS_ORIGINS=["http://localhost:5173"]
 docker-compose up -d postgres qdrant
 ```
 
-### 4. Запустить backend
+### 4. Применить миграции и запустить backend
 
 ```bash
 source .venv/bin/activate
+
+# Применить Alembic миграции (создаёт users + добавляет role)
+alembic upgrade head
+
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -147,12 +158,14 @@ python -m eval.run_eval --judge
 ai-job-match-assistant/
 ├── api/                    ← FastAPI backend
 │   ├── agents/             ← LangGraph пайплайн (parse → gap → advise)
+│   ├── auth/               ← JWT auth (bcrypt + python-jose), Depends
 │   ├── clients/            ← hh.ru клиент, Playwright pool, PDF парсер
 │   ├── llm/                ← провайдер (OpenAI / Ollama), SSE streaming
 │   ├── ml/                 ← BERT NER (навыки) + DistilBERT (seniority)
 │   ├── rag/                ← Qdrant hybrid search (dense + sparse BM42)
-│   ├── routes/             ← /analyze, /seek, /batch, /parse-resume, /fetch-vacancy
+│   ├── routes/             ← /auth, /analyze, /seek, /batch, /history, /analyses
 │   └── db/                 ← PostgreSQL модели (SQLAlchemy async)
+├── alembic/                ← миграции БД (async Alembic)
 ├── frontend/               ← React 19 + Vite + Zustand + TanStack Query
 ├── eval/                   ← LLM-as-a-judge + offline метрики
 ├── ml/                     ← скрипты обучения (LoRA, NER fine-tuning)

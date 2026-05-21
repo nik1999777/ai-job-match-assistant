@@ -26,14 +26,19 @@ src/
 ├── api/
 │   ├── generated.ts          ← orval codegen из FastAPI OpenAPI (не редактировать вручную)
 │   └── streaming.ts          ← SSE логика: читает поток /api/analyze, вызывает callbacks
+│                                Authorization: Bearer token + mode из getRole()
 │
 ├── store/
-│   ├── analysisStore.ts      ← Zustand store для режима "Анализ 1:1"
+│   ├── analysisStore.ts      ← Zustand store для режима "Анализ"
+│   ├── authStore.ts          ← Zustand persist: token, userId, email, role
+│   │                             getToken() / getRole() — утилиты вне React (для streaming.ts)
 │   └── seekStore.ts          ← Zustand store для режима "Поиск работы"
 │                                 (status, statusMessage, resumeSkills, results[])
 │                                 addResult сразу сортирует по match_score DESC
 │
 ├── hooks/
+│   ├── useAuth.ts             ← useLogin, useRegister (TanStack Query mutations)
+│   │                             onSuccess → authStore.login(token, userId, email, role)
 │   ├── useAnalyze.ts          ← useMutation (TanStack Query) + callbacks в analysisStore
 │   ├── useUploadResume.ts     ← обёртка над orval-хуком для PDF upload
 │   ├── useBatchAnalyze.ts     ← хук для POST /api/batch (HR режим)
@@ -43,7 +48,12 @@ src/
 │
 ├── components/
 │   ├── ui/                    ← shadcn компоненты
-│   ├── ModeToggle.tsx         ← переключатель: Анализ 1:1 | Поиск работы | HR
+│   ├── AppHeader.tsx          ← единый sticky хедер для всех режимов
+│   │                             tabs зависят от роли:
+│   │                               seeker → [Анализ] [Поиск работы]
+│   │                               hr     → [Анализ] [HR]
+│   │                             user dropdown: аватар + email + История + Sign out
+│   │                             История — в меню (Vercel/Linear pattern), не в основной nav
 │   ├── PipelineProgress.tsx   ← прогресс узлов (parse → gap → advise)
 │   ├── MatchScore.tsx         ← процент совпадения + progress bar
 │   ├── SkillBadges.tsx        ← зелёные (found) и красные (missing) badges
@@ -64,15 +74,27 @@ src/
 │                                 decision badge, found/missing skills, expand→advice
 │
 ├── pages/
-│   ├── AnalysisPage.tsx       ← лейаут: форма слева, результат справа (seeker 1:1)
-│   ├── HRBatchPage.tsx        ← лейаут HR batch анализа
-│   └── JobSeekPage.tsx        ← лейаут: SeekForm слева, VacancyResultList справа
+│   ├── AuthPage.tsx           ← форма входа/регистрации
+│   │                             tabs: Войти / Регистрация
+│   │                             role picker (только на регистрации): Соискатель | HR
+│   │                             карточки с SVG иконками, selected = border-foreground bg-accent
+│   ├── AnalysisPage.tsx       ← лейаут: форма слева, результат справа (seeker)
+│   ├── HRBatchPage.tsx        ← лейаут HR batch анализа (full-height scroll)
+│   ├── JobSeekPage.tsx        ← лейаут: SeekForm слева, VacancyResultList справа
+│   ├── HistoryPage.tsx        ← список анализов текущего пользователя
+│   │                             клик на карточку → AnalysisDetailPage
+│   │                             кнопка удаления с e.stopPropagation()
+│   └── AnalysisDetailPage.tsx ← детальный просмотр одного анализа
+│                                 ScoreRing, DecisionBadge, навыки, LLM advice, raw texts
 │
 ├── app/
-│   └── App.tsx                ← QueryClientProvider + роутинг по AppMode
-│                                 'seeker' → AnalysisPage
-│                                 'search' → JobSeekPage
-│                                 'hr'     → HRBatchPage
+│   └── App.tsx                ← QueryClientProvider + auth guard + роутинг по AppMode
+│                                 если нет токена → AuthPage
+│                                 иначе → AppHeader + {mode}-страница
+│                                 'seeker'  → AnalysisPage
+│                                 'search'  → JobSeekPage
+│                                 'hr'      → HRBatchPage
+│                                 'history' → HistoryPage
 │
 ├── lib/utils.ts               ← cn() утилита от shadcn
 └── index.css                  ← Tailwind v4 + shadcn переменные
@@ -86,8 +108,8 @@ src/
 
 SSE стриминг плохо ложится в TanStack Query (он для request-response). Разделение:
 
-- **Zustand** — хранит streaming state (токены, parsedData, gapData, прогресс узлов)
-- **TanStack Query `useMutation`** — управляет lifecycle запроса (pending, error, reset)
+- **Zustand** — хранит streaming state (токены, parsedData, gapData, прогресс узлов) + auth state
+- **TanStack Query `useMutation`** — управляет lifecycle запросов (pending, error, reset)
 
 ```
 useAnalyze.ts
@@ -104,7 +126,20 @@ streamAnalyze (api/streaming.ts)
         → store.setParsedData()
         → store.setGapData()
         → store.setDone()
+
+useLogin / useRegister (hooks/useAuth.ts)
+  └── useMutation
+        mutationFn → POST /api/auth/login|register
+        onSuccess  → authStore.login(token, userId, email, role)
 ```
+
+**authStore** — Zustand с `persist` middleware (localStorage, ключ `'auth'`):
+```typescript
+// Вне React компонентов (для streaming.ts)
+getToken() → useAuthStore.getState().token
+getRole()  → useAuthStore.getState().role ?? 'seeker'
+```
+`streaming.ts` использует `getToken()` для Authorization header и `getRole()` для параметра `mode` — без React hooks, без prop drilling.
 
 ### Почему компоненты читают Zustand напрямую?
 
@@ -218,12 +253,32 @@ seekStore.ts
 
 ## UI — что видит пользователь
 
-**Хедер** (общий для всех режимов):
+**Авторизация** (AuthPage):
 ```
-AI Job Match Assistant     [Анализ 1:1] [Поиск работы] [HR]
+┌─────────────────────────┐
+│  AI Job Match           │
+│  С возвращением         │
+│                         │
+│  [Войти] [Регистрация]  │
+│                         │
+│  Email: ___________     │
+│  Пароль: __________     │
+│  [Войти →]              │
+│                         │
+│  (на регистрации:)      │
+│  [🔍 Соискатель] [HR]   │  ← role picker с иконками
+└─────────────────────────┘
 ```
 
-**Анализ 1:1** (AnalysisPage):
+**Хедер** (AppHeader, общий для всех режимов после авторизации):
+```
+AI Job Match   [Анализ] [Поиск работы]         [N]▾   ← аватар (initial) + dropdown
+                                                         ├ История анализов
+                                                         └ Sign out
+```
+HR пользователи видят: `[Анализ] [HR]` вместо `[Поиск работы]`
+
+**Анализ** (AnalysisPage):
 ```
 ┌──────────────────────────┬──────────────────────────────────┐
 │  Резюме                  │  ○ Parsing resume & vacancy      │
@@ -263,6 +318,26 @@ AI Job Match Assistant     [Анализ 1:1] [Поиск работы] [HR]
 │  1  candidate2.pdf   85%    [Hire]       Python FastAPI ...  │
 │  2  candidate1.pdf   60%    [Borderline] Python             │
 └─────────────────────────────────────────────────────────────┘
+```
+
+**История анализов** (HistoryPage → AnalysisDetailPage):
+```
+История анализов                           [← Назад]
+
+  vacancy: ML Engineer · Яндекс    40%  middle   2026-05-21  [🗑]
+  vacancy: Python Developer         75%  senior   2026-05-20  [🗑]
+
+  ↓ клик на карточку
+
+  ML Engineer · Яндекс
+  ●●●●○ 40%  middle  [Borderline]
+
+  Совпадающие навыки: Python FastAPI
+  Пропущенные навыки: Kafka Kubernetes
+
+  ## Overall Assessment...
+  ▼ Резюме (исходный текст)
+  ▼ Вакансия (исходный текст)
 ```
 
 ---
