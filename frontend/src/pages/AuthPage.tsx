@@ -17,7 +17,7 @@ export function AuthPage({ onSuccess }: Props) {
   const mutation = tab === 'login' ? login : register
   const error = mutation.error?.message
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     const payload = tab === 'register' ? { email, password, role } : { email, password }
     await mutation.mutateAsync(payload as Parameters<typeof mutation.mutateAsync>[0])
@@ -54,38 +54,43 @@ export function AuthPage({ onSuccess }: Props) {
 
           {/* Role picker — только при регистрации */}
           {tab === 'register' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Я</label>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                {
+                  value: 'seeker', label: 'Соискатель', sub: 'Ищу работу',
+                  icon: (
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                    </svg>
+                  ),
+                },
+                {
+                  value: 'hr', label: 'HR', sub: 'Оцениваю кандидатов',
+                  icon: (
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  ),
+                },
+              ] as const).map(({ value, label, sub, icon }) => (
                 <button
+                  key={value}
                   type="button"
-                  onClick={() => setRole('seeker')}
+                  onClick={() => setRole(value)}
                   className={[
-                    'flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all',
-                    role === 'seeker'
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border hover:border-foreground/30',
+                    'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all',
+                    role === value
+                      ? 'border-foreground bg-accent text-foreground'
+                      : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground',
                   ].join(' ')}
                 >
-                  <span className="text-base">🔍</span>
-                  <span className="text-sm font-medium">Соискатель</span>
-                  <span className="text-xs text-muted-foreground">Ищу работу</span>
+                  {icon}
+                  <div>
+                    <p className="text-sm font-medium leading-none">{label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                  </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('hr')}
-                  className={[
-                    'flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all',
-                    role === 'hr'
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border hover:border-foreground/30',
-                  ].join(' ')}
-                >
-                  <span className="text-base">📋</span>
-                  <span className="text-sm font-medium">HR</span>
-                  <span className="text-xs text-muted-foreground">Оцениваю кандидатов</span>
-                </button>
-              </div>
+              ))}
             </div>
           )}
 
