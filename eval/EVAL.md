@@ -113,11 +113,25 @@ python -m eval.run_eval
 
 ---
 
+## Запуск
+
+```bash
+# prerequisite: docker-compose up -d qdrant db
+
+# offline метрики (без LLM, бесплатно):
+python -m eval.run_eval
+
+# + LLM-as-a-judge (требует OPENAI_API_KEY в .env):
+python -m eval.run_eval --judge
+```
+
+Результаты сохраняются в `eval/results/eval_YYYY-MM-DD.jsonl`.
+
 ## Статус
 
 | Файл | Статус |
 |---|---|
-| `eval/judge.py` | 📅 Неделя 3 |
-| `eval/metrics.py` | 📅 Неделя 3 |
-| `eval/dataset.py` | 📅 Неделя 3 |
-| `eval/run_eval.py` | 📅 Неделя 3 |
+| `eval/dataset.py` | ✅ Реализован (6 тестовых пар) |
+| `eval/metrics.py` | ✅ Реализован (Rouge-L, skill_recall, MAE) |
+| `eval/judge.py` | ✅ Реализован (GPT-4o-mini, JudgeScore) |
+| `eval/run_eval.py` | ✅ Реализован (CLI, JSONL, summary table) |

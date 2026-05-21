@@ -467,19 +467,42 @@ python -m scripts.index_vacancies --area 2 --pause 3
 
 Один Playwright браузер на всю сессию — DDoS Guard cookies переиспользуются. Пауза 2 сек между запросами (настраивается `--pause`). `upsert` в Qdrant — повторный запуск идемпотентен.
 
-### 4.6 Eval Pipeline (планируется)
+### 4.6 Eval Pipeline
 
 ```
 eval/
-├── judge.py          — LLM-as-a-judge: Claude/GPT оценивает качество совета
-├── metrics.py        — offline метрики: Rouge-L, BERTScore
-├── dataset.py        — тестовые пары резюме/вакансий с референсными ответами
-└── run_eval.py       — запуск прогона + сохранение в eval_results.jsonl
+├── dataset.py        — 6 тестовых пар EvalCase: resume + vacancy + ground truth
+├── metrics.py        — offline метрики без LLM: Rouge-L, skill_recall, match_score_mae
+├── judge.py          — LLM-as-a-judge: GPT-4o-mini оценивает quality совета (1-5)
+├── run_eval.py       — запуск прогона + сохранение в eval/results/eval_YYYY-MM-DD.jsonl
+└── results/          — история прогонов (JSONL, один файл в день)
 ```
 
+**Запуск:**
+```bash
+# offline метрики только (без LLM-вызовов, бесплатно)
+python -m eval.run_eval
+
+# + LLM-as-a-judge (требует OPENAI_API_KEY)
+python -m eval.run_eval --judge
+```
+
+**Три уровня метрик:**
+
+| Метрика | Что измеряет | Где |
+|---|---|---|
+| `match_score_in_range` | match_score попадает в ожидаемый диапазон | `metrics.py` |
+| `skill_recall` | доля ожидаемых пробелов, которые система нашла | `metrics.py` |
+| `rouge_l` | сходство совета с reference_advice | `metrics.py` |
+| `judge_relevance/actionability/accuracy` | LLM-судья оценивает 1-5 по трём критериям | `judge.py` |
+
 **Что такое LLM-as-a-judge?**  
-Вместо человека берём сильную модель (GPT-4) и просим оценить ответ нашей системы по критериям (relevance, actionability, accuracy).  
-Это стандартная практика в AI Lab для offline-мониторинга качества.
+Вместо человека берём сильную модель (GPT-4o-mini) и просим оценить ответ нашей системы по критериям (relevance, actionability, accuracy 1-5).  
+Это стандартная практика в AI Lab для offline-мониторинга качества — дешевле human eval, коррелирует с ним.
+
+**Почему offline метрики важны?**  
+Rouge-L и skill_recall работают без API-вызовов — можно запускать на каждом коммите в CI.  
+LLM-judge запускают реже (дорого), но даёт human-readable оценку с reasoning.
 
 ---
 
@@ -568,8 +591,14 @@ Pre-eval fixes (DONE ✅):
   api/settings.py                — llm_temperature, resume_context_limit, vacancy_context_limit
   requirements.txt               — torch>=2.6.0 (Python 3.13), sentencepiece
 
+Неделя 3 (DONE ✅):
+  eval/dataset.py                — 6 тестовых EvalCase с ground truth (match range, missing skills, seniority)
+  eval/metrics.py                — rouge_l, skill_recall, match_score_mae, match_score_in_range
+  eval/judge.py                  — LLM-as-a-judge: GPT-4o-mini + with_structured_output(JudgeScore)
+  eval/run_eval.py               — orchestrator: run_graph × N cases → offline + judge metrics → JSONL
+  eval/results/                  — история прогонов eval_YYYY-MM-DD.jsonl
+
 Неделя 4:
-  eval/                          — LLM-as-a-judge eval pipeline
   ml/train_seniority.py          — обучение LoRA модели
   ml/train_ner.py                — fine-tuning NER
   README.md + финальная документация
