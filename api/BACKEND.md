@@ -27,7 +27,7 @@ api/
 │   └── nodes/
 │       ├── parse.py   ← узел 1: LLM → структурированный JSON из резюме/вакансии
 │       │                smart_truncate_resume() — приоритет секции навыков при обрезке
-│       ├── gap.py     ← узел 2: ML навыки + RAG похожие вакансии
+│       ├── gap.py     ← узел 2: ML навыки + RAG похожие вакансии + auto-index вакансии в Qdrant
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
 ├── llm/
@@ -241,6 +241,23 @@ async def search_vacancies(query, area, per_page, experience, salary_from, sched
 
 # vacancy_to_text: dict → plain text (HTML → regex strip)
 ```
+
+## gap_node — auto-indexing
+
+Каждая проанализированная вакансия автоматически добавляется в Qdrant:
+
+```python
+# gap.py — fire-and-forget после извлечения навыков
+asyncio.create_task(_auto_index_vacancy(vacancy_text, title, vacancy_skills))
+```
+
+- `vacancy_id` = MD5-хэш текста вакансии (идемпотентно — одна и та же вакансия не дублируется)
+- `title` = `vacancy_summary` из parse_node (первые 120 символов)
+- Ошибки не блокируют анализ — логируются как DEBUG
+
+**Эффект:** база знаний растёт органически из пользовательского поведения, покрывает любые специализации без ручного запуска скриптов.
+
+---
 
 ## VacancySearchProvider — абстракция поиска
 
