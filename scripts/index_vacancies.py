@@ -23,11 +23,28 @@ _SKILL_KEYWORDS = {
 }
 
 DEFAULT_QUERIES = [
+    # AI / ML
     "ML Engineer",
     "LLM Engineer",
-    "NLP инженер",
-    "Machine Learning",
     "AI разработчик",
+    # Backend
+    "Python разработчик",
+    "Backend Developer",
+    "Java разработчик",
+    # Frontend
+    "Frontend разработчик",
+    "React разработчик",
+    # DevOps / Infra
+    "DevOps инженер",
+    "Site Reliability Engineer",
+    # Data
+    "Data Engineer",
+    "Data Analyst",
+    # Management
+    "Product Manager",
+    "Project Manager",
+    # Design
+    "UX Designer",
 ]
 
 _USER_AGENT = (
@@ -41,17 +58,53 @@ def _extract_skills(text: str) -> list[str]:
     return sorted(kw for kw in _SKILL_KEYWORDS if kw in text_lower)
 
 
-async def _search_page(ctx: BrowserContext, query: str, area: int, page_num: int) -> list[dict]:
+async def _search_page(ctx: BrowserContext, query: str, area: int, page_num: int, debug: bool = False) -> list[dict]:
     """Return list of {id, name} from one search results page."""
     url = (
         f"https://hh.ru/search/vacancy"
-        f"?text={query}&area={area}&items_on_page=100&page={page_num}"
+        f"?text={query}&area={area}&items_on_page=100&page={page_num}&no_magic=true"
     )
     page = await ctx.new_page()
-    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    await page.goto(url, wait_until="networkidle", timeout=60_000)
+    await asyncio.sleep(2)
+
+    if debug:
+        screenshot_path = f"/tmp/hh_debug_{page_num}.png"
+        await page.screenshot(path=screenshot_path, full_page=False)
+        print(f"  [debug] screenshot saved: {screenshot_path}")
+        title = await page.title()
+        print(f"  [debug] page title: {title}")
+        data_qa_values = await page.evaluate("""() => {
+            const els = document.querySelectorAll('a[data-qa]');
+            const values = [...new Set(Array.from(els).map(el => el.getAttribute('data-qa')))];
+            return values.filter(v => v.includes('vacancy') || v.includes('serp') || v.includes('title'));
+        }""")
+        print(f"  [debug] vacancy-related data-qa values: {data_qa_values}")
+        vacancy_links = await page.evaluate("""() => {
+            const els = document.querySelectorAll('a[href*="/vacancy/"]');
+            return Array.from(els).slice(0, 5).map(a => ({
+                href: a.href, qa: a.getAttribute('data-qa'), text: a.textContent.trim().slice(0, 60)
+            }));
+        }""")
+        print(f"  [debug] first 5 vacancy links: {vacancy_links}")
 
     links = await page.evaluate("""() => {
-        const els = document.querySelectorAll('a[data-qa="serp-item__title-link"]');
+        // Try current selector, fall back to href pattern
+        let els = document.querySelectorAll('a[data-qa="serp-item__title-link"]');
+        if (!els.length) els = document.querySelectorAll('a[data-qa="vacancy-serp__vacancy-title"]');
+        if (!els.length) {
+            // Fallback: all vacancy links with non-empty text, deduplicated by href
+            const all = Array.from(document.querySelectorAll('a[href*="/vacancy/"]'))
+                .filter(a => /\\/vacancy\\/\\d+/.test(a.href) && a.textContent.trim().length > 5);
+            const seen = new Set();
+            els = all.filter(a => {
+                const key = a.href.split('?')[0];
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            return Array.from(els).map(a => ({ href: a.href, title: a.textContent.trim() }));
+        }
         return Array.from(els).map(a => ({ href: a.href, title: a.textContent.trim() }));
     }""")
     await page.close()
@@ -64,7 +117,7 @@ async def _search_page(ctx: BrowserContext, query: str, area: int, page_num: int
     return results
 
 
-async def run(queries: list[str], pages: int, area: int, pause: float) -> None:
+async def run(queries: list[str], pages: int, area: int, pause: float, debug: bool = False) -> None:
     qdrant = AsyncQdrantClient(url=settings.qdrant_url)
     print(f"Connecting to Qdrant at {settings.qdrant_url} ...")
     await ensure_collection(qdrant)
@@ -80,7 +133,7 @@ async def run(queries: list[str], pages: int, area: int, pause: float) -> None:
         for query in queries:
             print(f"Query: '{query}'")
             for page_num in range(pages):
-                items = await _search_page(ctx, query, area, page_num)
+                items = await _search_page(ctx, query, area, page_num, debug=debug)
                 if not items:
                     print(f"  page {page_num}: no results, stopping.")
                     break
@@ -123,11 +176,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Index hh.ru vacancies into Qdrant via Playwright")
     parser.add_argument("--query", action="append", dest="queries", metavar="QUERY")
     parser.add_argument("--pages", type=int, default=3, help="Search pages per query (100 vacancies each)")
-    parser.add_argument("--area", type=int, default=1, help="hh.ru area: 1=Moscow, 2=SPb, 0=Russia")
+    parser.add_argument("--area", type=int, default=113, help="hh.ru area: 113=Russia, 1=Moscow, 2=SPb")
     parser.add_argument("--pause", type=float, default=2.0, help="Seconds between requests")
+    parser.add_argument("--debug", action="store_true", help="Save screenshot of first search page")
     args = parser.parse_args()
 
-    asyncio.run(run(args.queries or DEFAULT_QUERIES, args.pages, args.area, args.pause))
+    asyncio.run(run(args.queries or DEFAULT_QUERIES, args.pages, args.area, args.pause, args.debug))
 
 
 if __name__ == "__main__":
