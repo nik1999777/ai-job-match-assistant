@@ -1,26 +1,29 @@
 import asyncio
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.agents.graph import build_graph
 from api.agents.nodes.parse import PROMPT, ParsedData, smart_truncate_resume
+from api.auth.deps import current_user_optional
 from api.clients.hh_client import get_vacancy, vacancy_to_text
 from api.clients.vacancy_search import SearchFilters, format_salary, get_search_provider
+from api.db.models import SeekSession, get_session
 from api.llm.provider import get_llm
 from api.llm.streaming import run_graph, sse_encode
 
 router = APIRouter(prefix="/api", tags=["seek"])
 
-_HH_SEM = asyncio.Semaphore(5)  # не ддосим hh.ru при обогащении
+_HH_SEM = asyncio.Semaphore(5)
 
 
 class SeekRequest(BaseModel):
     resume: str
-    job_title: str = ""              # если пусто — строим из скиллов резюме
-    area: int = 1                    # 1=Москва, 2=СПб, 113=вся Россия
+    job_title: str = ""
+    area: int = 1
     experience: str | None = None
     salary_from: int | None = None
     remote: bool = False
@@ -28,9 +31,14 @@ class SeekRequest(BaseModel):
 
 
 @router.post("/seek")
-async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
+async def seek_vacancies(
+    body: SeekRequest,
+    db: AsyncSession = Depends(get_session),
+    user=Depends(current_user_optional),
+) -> StreamingResponse:
     async def generate():
         queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        collected: list[dict] = []
 
         async def worker() -> None:
             try:
@@ -85,7 +93,7 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                             item.text = vacancy_to_text(data)
                             item.salary_str = format_salary(data.get("salary"))
                         except Exception:
-                            pass  # оставляем данные карточки поиска как fallback
+                            pass
 
                 await asyncio.gather(*[enrich(i) for i in items])
 
@@ -111,7 +119,7 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                             decision = "worth_considering"
                         else:
                             decision = "weak_match"
-                        await queue.put({
+                        result = {
                             "event": "result",
                             "vacancy_id": item.id,
                             "title": item.title,
@@ -123,9 +131,9 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                             "skills_found": state.get("skills_found", []),
                             "skills_missing": state.get("skills_missing", []),
                             "explanation": state.get("llm_response", ""),
-                        })
+                        }
                     except Exception as exc:
-                        await queue.put({
+                        result = {
                             "event": "result",
                             "vacancy_id": item.id,
                             "title": item.title,
@@ -137,9 +145,25 @@ async def seek_vacancies(body: SeekRequest) -> StreamingResponse:
                             "skills_found": [],
                             "skills_missing": [],
                             "explanation": f"Analysis error: {exc}",
-                        })
+                        }
+                    collected.append(result)
+                    await queue.put(result)
 
                 await asyncio.gather(*[analyze_one(i) for i in items])
+
+                if user and collected:
+                    seek_session = SeekSession(
+                        user_id=user.id,
+                        job_title=query,
+                        result_count=len(collected),
+                        results=json.dumps(
+                            [{k: v for k, v in r.items() if k != "event"} for r in collected],
+                            ensure_ascii=False,
+                        ),
+                    )
+                    db.add(seek_session)
+                    await db.commit()
+
                 await queue.put({"event": "done", "total": len(items)})
 
             except Exception as exc:

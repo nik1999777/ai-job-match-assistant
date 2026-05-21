@@ -70,6 +70,32 @@ class Analysis(Base):
     session: Mapped["Session"] = relationship("Session", back_populates="analyses")
 
 
+class BatchSession(Base):
+    __tablename__ = "batch_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    vacancy_text: Mapped[str] = mapped_column(Text)
+    candidate_count: Mapped[int] = mapped_column(Integer)
+    results: Mapped[str] = mapped_column(Text)  # JSON array of CandidateResult
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User | None"] = relationship("User")
+
+
+class SeekSession(Base):
+    __tablename__ = "seek_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    job_title: Mapped[str] = mapped_column(String(255))
+    result_count: Mapped[int] = mapped_column(Integer)
+    results: Mapped[str] = mapped_column(Text)  # JSON array of VacancyResult
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User | None"] = relationship("User")
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

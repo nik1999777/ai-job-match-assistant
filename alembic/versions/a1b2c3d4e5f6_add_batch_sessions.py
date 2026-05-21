@@ -1,0 +1,33 @@
+"""add_batch_sessions
+
+Revision ID: a1b2c3d4e5f6
+Revises: 995cca14475e
+Create Date: 2026-05-21 18:00:00.000000
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+revision: str = 'a1b2c3d4e5f6'
+down_revision: Union[str, Sequence[str], None] = '995cca14475e'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        'batch_sessions',
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
+        sa.Column('vacancy_text', sa.Text(), nullable=False),
+        sa.Column('candidate_count', sa.Integer(), nullable=False),
+        sa.Column('results', sa.Text(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+    )
+
+
+def downgrade() -> None:
+    op.drop_table('batch_sessions')

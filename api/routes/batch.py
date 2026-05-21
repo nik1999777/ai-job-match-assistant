@@ -1,10 +1,14 @@
 import asyncio
+import json
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.agents.graph import build_graph
+from api.auth.deps import current_user_optional
+from api.db.models import BatchSession, get_session
 from api.llm.streaming import run_graph
 
 logger = logging.getLogger(__name__)
@@ -35,11 +39,16 @@ class CandidateResult(BaseModel):
 
 
 class BatchResponse(BaseModel):
+    id: int | None = None
     results: list[CandidateResult]
 
 
 @router.post("/batch", response_model=BatchResponse)
-async def batch_analyze(body: BatchRequest) -> BatchResponse:
+async def batch_analyze(
+    body: BatchRequest,
+    db: AsyncSession = Depends(get_session),
+    user=Depends(current_user_optional),
+) -> BatchResponse:
     if len(body.resumes) > _MAX_BATCH_SIZE:
         raise HTTPException(
             status_code=422,
@@ -81,4 +90,18 @@ async def batch_analyze(body: BatchRequest) -> BatchResponse:
 
     results = await asyncio.gather(*[analyze_one(r) for r in body.resumes])
     ranked = sorted(results, key=lambda x: x.match_score, reverse=True)
-    return BatchResponse(results=ranked)
+
+    session_id: int | None = None
+    if user:
+        batch_session = BatchSession(
+            user_id=user.id,
+            vacancy_text=body.vacancy,
+            candidate_count=len(body.resumes),
+            results=json.dumps([r.model_dump() for r in ranked]),
+        )
+        db.add(batch_session)
+        await db.commit()
+        await db.refresh(batch_session)
+        session_id = batch_session.id
+
+    return BatchResponse(id=session_id, results=ranked)

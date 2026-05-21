@@ -33,11 +33,11 @@
 │                         КЛИЕНТ (3 режима + auth)                │
 │     React 19 + Vite 8 + Zustand + TanStack Query + Orval        │
 │                                                                 │
-│  [Анализ]      resume + vacancy → SSE анализ (seeker/hr)       │
-│  [Поиск работы] resume + фильтры → N вакансий → ranked results │
-│  [HR]          1 vacancy + N резюме → batch ranking            │
-│  [История]     список анализов → drill-down на каждый           │
-│  [Авторизация] email+password, role: seeker|hr                 │
+│  [Анализ резюме]   resume + vacancy → SSE анализ (seeker/hr mode)  │
+│  [Поиск работы]   resume + фильтры → N вакансий → ranked results  │
+│  [Скрининг резюме] 1 vacancy + N резюме → batch ranking (hr only)  │
+│  [История]        роль-зависимые табы + удаление с подтверждением  │
+│  [Авторизация]    email+password, role: seeker|hr                  │
 └─────────┬──────────────────┬──────────────────┬────────────────┘
           │ POST /api/analyze │ POST /api/seek   │ POST /api/batch
           │ SSE               │ SSE              │ JSON
@@ -50,8 +50,12 @@
 │  /api/analyze   → резюме + вакансия + mode → LangGraph → SSE   │
 │  /api/seek      → резюме + фильтры → поиск → N×LangGraph → SSE │
 │  /api/batch     → вакансия + N резюме → asyncio.gather → JSON  │
-│  /api/history   → список анализов пользователя (JWT required)  │
-│  /api/analyses/{id} → детали + удаление (JWT required)         │
+│  /api/history        → список анализов (mode filter, JWT required)│
+│  /api/analyses/{id}    → детали + удаление (JWT required)         │
+│  /api/batch-history    → история скринингов (JWT required)        │
+│  /api/batch-history/{id} → детали + удаление (JWT required)       │
+│  /api/seek-history     → история поисков (JWT required)           │
+│  /api/seek-history/{id}  → детали + удаление (JWT required)       │
 │  /api/parse-resume → PDF upload → PyMuPDF → текст              │
 │  /api/fetch-vacancy → URL → текст вакансии                     │
 │  /health        → healthcheck                                   │
@@ -294,17 +298,29 @@ PostgreSQL
 │   ├── mode ("seeker" | "hr")
 │   └── created_at
 │
-└── analyses
-    ├── id (UUID, PK)
-    ├── session_id (FK → sessions)
-    ├── resume_text
-    ├── vacancy_text
-    ├── match_score (float, nullable — заполняется после)
-    ├── seniority (str, nullable)
-    ├── seniority_confidence (float, nullable)
-    ├── skills_found (JSON string)
-    ├── skills_missing (JSON string)
-    ├── llm_response (text, nullable)
+├── analyses
+│   ├── id (int, PK)
+│   ├── session_id (FK → sessions)
+│   ├── resume_text, vacancy_text
+│   ├── match_score, seniority, seniority_confidence
+│   ├── skills_found, skills_missing (JSON string)
+│   ├── llm_response, decision
+│   └── created_at
+│
+├── batch_sessions                    ← история скрининга (HR batch)
+│   ├── id (int, PK)
+│   ├── user_id (FK → users, nullable)
+│   ├── vacancy_text
+│   ├── candidate_count (int)
+│   ├── results (JSON Text — массив CandidateResult)
+│   └── created_at
+│
+└── seek_sessions                     ← история поиска работы
+    ├── id (int, PK)
+    ├── user_id (FK → users, nullable)
+    ├── job_title (str — запрос)
+    ├── result_count (int)
+    ├── results (JSON Text — массив VacancyResult)
     └── created_at
 ```
 
@@ -621,28 +637,35 @@ Ollama требует GPU/MPS — запускается отдельно на �
   scripts/index_vacancies.py     — 16 универсальных специализаций вместо 5 ML-only;
                                    selector fallback + no_magic + area=113 (гео-редирект fix)
 
-Неделя 3 (DONE ✅) — Auth + History:
+Неделя 3 (DONE ✅) — Auth + History + Full History:
   api/auth/jwt.py                — bcrypt хэширование, JWT encode/decode (python-jose)
                                    bcrypt используется напрямую (passlib несовместим с bcrypt>=4.x)
-  api/auth/deps.py               — current_user_optional (для /analyze) + current_user_required (для /history)
-  api/routes/auth.py             — POST /api/auth/register (email+password+role → JWT)
-                                   POST /api/auth/login (email+password → JWT)
-  api/routes/history.py          — GET /api/history (paginated), GET /api/analyses/{id},
-                                   DELETE /api/analyses/{id} — все требуют JWT
-  api/db/models.py               — User(id, email, password_hash, role, created_at)
-                                   Session.user_id (FK → users, nullable)
-  alembic/                       — async Alembic миграции (single run_sync паттерн)
-  frontend/store/authStore.ts    — Zustand persist: token, userId, email, role
-                                   getToken() / getRole() — утилиты вне React компонентов
-  frontend/hooks/useAuth.ts      — useLogin, useRegister (TanStack Query mutations)
-  frontend/pages/AuthPage.tsx    — форма входа/регистрации, role picker (seeker/hr карточки с иконками)
-  frontend/components/AppHeader.tsx — единый sticky хедер; роль-зависимые табы
-                                   seeker: Анализ + Поиск работы
-                                   hr:     Анализ + HR
-                                   История анализов — в dropdown пользователя (Vercel/Linear pattern)
-  frontend/pages/HistoryPage.tsx — список анализов, клик → drill-down, кнопка удаления
-  frontend/pages/AnalysisDetailPage.tsx — детальный просмотр: ScoreRing, навыки, LLM advice, raw texts
-  api/streaming.ts               — Authorization: Bearer token + mode из getRole() (не хардкод)
+  api/auth/deps.py               — current_user_optional (для /analyze, /seek, /batch)
+                                   current_user_required (для /history, /batch-history, /seek-history)
+  api/routes/auth.py             — POST /api/auth/register + POST /api/auth/login → JWT
+  api/routes/history.py          — GET /api/history (paginated, mode filter)
+                                   GET|DELETE /api/analyses/{id}
+                                   GET /api/batch-history, GET|DELETE /api/batch-history/{id}
+                                   GET /api/seek-history, GET|DELETE /api/seek-history/{id}
+  api/routes/batch.py            — optional auth: если авторизован → сохраняет BatchSession в БД
+  api/routes/seek.py             — optional auth: если авторизован → сохраняет SeekSession в БД
+  api/db/models.py               — User, Session, Analysis, BatchSession, SeekSession
+  alembic/                       — 4 миграции: users, role, batch_sessions, seek_sessions
+  frontend/components/AppHeader.tsx — роль-зависимые табы:
+                                   seeker: [Анализ резюме] [Поиск работы]
+                                   hr:     [Оценка кандидата] [Скрининг резюме]
+  frontend/pages/HistoryPage.tsx — роль-зависимые табы истории:
+                                   seeker: "Анализ резюме" | "Поиск работы"
+                                   hr: "Оценка кандидата" | "Скрининг резюме"
+                                   удаление с ConfirmDialog (модальное подтверждение)
+  frontend/pages/AnalysisDetailPage.tsx — ScoreRing, навыки, LLM advice, raw texts
+  frontend/pages/BatchDetailPage.tsx — детальный просмотр скрининга: ранжированный список кандидатов
+  frontend/pages/SeekDetailPage.tsx  — детальный просмотр поиска: карточки вакансий с решением
+  frontend/components/ui/confirm-dialog.tsx — переиспользуемый модальный диалог подтверждения
+  frontend/pages/HRBatchPage.tsx — рефакторинг: 2-колоночный layout (форма слева, результат справа)
+  frontend/hooks/useHistory.ts   — mode filter, хуки для batch-history и seek-history
+  frontend/hooks/useBatchAnalyze.ts — Authorization header (был без токена — batch не сохранялся)
+  frontend/hooks/useSeekVacancies.ts — Authorization header (был без токена — seek не сохранялся)
 
 Неделя 4:
   ml/train_seniority.py          — обучение LoRA модели

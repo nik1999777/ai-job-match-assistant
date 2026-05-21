@@ -9,13 +9,13 @@ interface Props {
 }
 
 const SEEKER_TABS: { id: Exclude<AppMode, 'history'>; label: string }[] = [
-  { id: 'seeker', label: 'Анализ' },
+  { id: 'seeker', label: 'Анализ резюме' },
   { id: 'search', label: 'Поиск работы' },
 ]
 
 const HR_TABS: { id: Exclude<AppMode, 'history'>; label: string }[] = [
-  { id: 'seeker', label: 'Анализ' },
-  { id: 'hr',     label: 'HR' },
+  { id: 'seeker', label: 'Оценка кандидата' },
+  { id: 'hr',     label: 'Скрининг резюме' },
 ]
 
 export function AppHeader({ mode, onModeChange }: Props) {

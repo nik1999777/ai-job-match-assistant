@@ -1,4 +1,5 @@
 import { useSeekStore, type VacancyResult } from '../store/seekStore'
+import { getToken } from '../store/authStore'
 
 export interface SeekParams {
   resume: string
@@ -18,9 +19,13 @@ export function useSeekVacancies() {
 
     let response: Response
     try {
+      const token = getToken()
       response = await fetch('/api/seek', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(params),
       })
     } catch (e) {

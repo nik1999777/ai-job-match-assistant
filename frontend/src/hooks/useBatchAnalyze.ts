@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { batchAnalyzeApiBatchPost } from '../api/generated'
 import type { BatchResponse, BatchRequest } from '../api/generated'
+import { getToken } from '../store/authStore'
 
 type BatchStatus = 'idle' | 'loading' | 'done' | 'error'
 
@@ -13,7 +14,10 @@ export function useBatchAnalyze() {
     setStatus('loading')
     setError(null)
     try {
-      const res = await batchAnalyzeApiBatchPost(request)
+      const token = getToken()
+      const res = await batchAnalyzeApiBatchPost(request, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (res.status === 200) {
         setResults(res.data as BatchResponse)
         setStatus('done')
