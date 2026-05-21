@@ -7,7 +7,7 @@
 В production AI системах нельзя деплоить изменения промптов/моделей без проверки качества.  
 Eval pipeline позволяет объективно измерить: стало лучше или хуже?
 
-Это прямое требование вакансии hh.ru AI Lab:  
+Это прямое требование вакансии hh.ru AI Lab:
 > *"опыт тестирования и регресс-проверок промптов, понимание подходов к оценке LLM-систем"*
 
 ---
@@ -16,10 +16,10 @@ Eval pipeline позволяет объективно измерить: стал
 
 ```
 eval/
-├── run_eval.py       ← запускает прогон, сохраняет результаты
-├── judge.py          ← LLM-as-a-judge: GPT-4 оценивает наш вывод
-├── metrics.py        ← offline метрики: Rouge-L, BERTScore
-├── dataset.py        ← тестовые пары + референсные ответы
+├── run_eval.py       ← запускает прогон, сохраняет результаты, regression comparison
+├── judge.py          ← LLM-as-a-judge: GPT-4o-mini оценивает наш вывод
+├── metrics.py        ← offline метрики: Rouge-L, skill recall/precision/F1, MAE
+├── dataset.py        ← 6 тестовых пар + референсные ответы
 ├── results/
 │   └── eval_YYYY-MM-DD.jsonl  ← история прогонов
 └── EVAL.md           ← этот файл
@@ -31,107 +31,121 @@ eval/
 
 ### 1. Offline метрики (`metrics.py`)
 
-Быстрые, дешёвые, без LLM-вызовов. Используются как первичный фильтр.
+Быстрые, дешёвые, без LLM-вызовов. Запускаются на каждом PR как первичный фильтр.
 
-```python
-# Rouge-L: насколько похож совет на референсный по длинным подпоследовательностям
-rouge_score(generated_advice, reference_advice)   # 0.0 – 1.0
-
-# Match score accuracy: насколько точно мы определяем overlap навыков
-match_score_mae = abs(predicted_score - ground_truth_score)
-```
+| Метрика | Описание | Цель |
+|---|---|---|
+| `match_score_in_range` | score попал в ожидаемый диапазон | > 80% |
+| `match_score_mae` | отклонение от диапазона (0 = идеал) | < 0.1 |
+| `skill_recall` | доля найденных пробелов из ожидаемых (sensitivity) | > 0.8 |
+| `skill_precision` | доля верных предсказаний среди всех предсказанных (без ложных тревог) | > 0.7 |
+| `skill_f1` | гармоническое среднее recall и precision | > 0.7 |
+| `rouge_l` | сходство совета с референсным текстом | информационная |
+| `latency_ms` | время выполнения pipeline на кейс | < 5000ms |
 
 ### 2. LLM-as-a-judge (`judge.py`)
 
-Берём сильную модель (GPT-4o) и просим оценить наш вывод по критериям.  
-Это стандарт в современных AI системах — дешевле human eval, но коррелирует с ним.
+GPT-4o-mini оценивает вывод нашей системы по 4 критериям (1–5).  
+Стандарт в современных AI системах: дешевле human eval, но высоко коррелирует с ним.
 
-```python
-JUDGE_PROMPT = """
-Оцени качество совета карьерного ассистента по критериям (1-5):
+| Критерий | Что проверяет |
+|---|---|
+| `relevance` | Совет релевантен конкретной паре резюме/вакансия |
+| `actionability` | Конкретные шаги или пустые общие слова |
+| `accuracy` | Правильно ли выявлены пробелы в навыках |
+| `faithfulness` | Нет ли галлюцинаций — всё ли сказанное есть в текстах |
 
-РЕЗЮМЕ: {resume}
-ВАКАНСИЯ: {vacancy}
-СОВЕТ АССИСТЕНТА: {advice}
+### 3. Regression comparison
 
-Критерии:
-- relevance: совет релевантен конкретной вакансии?
-- actionability: можно ли прямо сейчас применить совет?
-- accuracy: правильно ли выявлены пробелы в навыках?
+При каждом запуске runner автоматически загружает предыдущий JSONL из `results/`  
+и показывает дельту по каждой метрике:
 
-Верни JSON: {"relevance": N, "actionability": N, "accuracy": N, "reasoning": "..."}
-"""
 ```
-
-### 3. Match score validation
-
-Проверяем что наш match_score (из gap_node) совпадает с ground truth:
-```
-ground truth: HR эксперт вручную оценил пару резюме/вакансия → 0.65
-наша система: gap_node вернул 0.61
-MAE = |0.65 - 0.61| = 0.04  ← хорошо
+Skill recall    : 0.720  (✓ +0.109 vs baseline)
+Skill precision : 0.540  (⚠ -0.230 vs baseline)
 ```
 
 ---
 
 ## Тестовый датасет (`dataset.py`)
 
-```python
-TEST_CASES = [
-    {
-        "resume": "3 года Python, FastAPI, PostgreSQL. Без ML опыта.",
-        "vacancy": "ML Engineer: Python, PyTorch, LangChain, Qdrant",
-        "expected_match_range": (0.2, 0.4),   # ожидаем низкий score
-        "expected_missing": ["pytorch", "langchain", "qdrant"],
-        "expected_seniority": "middle",
-        "reference_advice": "Сфокусируйся на PyTorch и LangChain..."
-    },
-    # ... ещё 20-30 пар
-]
-```
+6 кейсов, покрывающих ключевые сценарии:
+
+| # | Описание | Expected match | Difficulty |
+|---|---|---|---|
+| 1 | Python backend → ML Engineer | 0.10–0.40 | partial match |
+| 2 | Senior Frontend → Senior Frontend | 0.60–0.95 | strong match |
+| 3 | Junior → Senior Full-Stack | 0.05–0.30 | seniority gap |
+| 4 | DevOps/SRE → DevOps | 0.65–0.95 | strong match |
+| 5 | Data Analyst → Data Scientist | 0.10–0.45 | missing ML libs |
+| 6 | Full-stack Python/React → Python Backend | 0.60–0.90 | good match |
 
 ---
 
 ## Запуск
 
 ```bash
-# Прогнать eval на всём датасете
+# Prerequisite: docker-compose up -d postgres qdrant + uvicorn запущен
+
+# Offline метрики (без LLM, бесплатно, ~2 мин на Ollama)
 python -m eval.run_eval
 
-# Результат сохраняется в eval/results/eval_2026-05-18.jsonl
-# Формат каждой записи:
-{
-  "test_id": 1,
-  "rouge_l": 0.42,
-  "match_score_mae": 0.05,
-  "judge_relevance": 4,
-  "judge_actionability": 3,
-  "judge_accuracy": 4,
-  "judge_reasoning": "Совет точно выявил gap по ML библиотекам..."
-}
-```
-
----
-
-## Запуск
-
-```bash
-# prerequisite: docker-compose up -d qdrant db
-
-# offline метрики (без LLM, бесплатно):
-python -m eval.run_eval
-
-# + LLM-as-a-judge (требует OPENAI_API_KEY в .env):
+# + LLM-as-a-judge (требует OPENAI_API_KEY в .env, ~5 мин)
 python -m eval.run_eval --judge
 ```
 
-Результаты сохраняются в `eval/results/eval_YYYY-MM-DD.jsonl`.
+Пример вывода:
+
+```
+=================================================================
+EVAL SUMMARY  (6 cases, 2026-05-21)
+=================================================================
+  Match score in range : 3/6  (50%)
+  Match score MAE      : 0.119
+  Seniority accuracy   : 4/6  (67%)
+
+  Skill recall         : 0.611
+  Skill precision      : 0.056    ← проблема: ложные тревоги
+  Skill F1             : 0.074
+  Rouge-L (advice)     : 0.029
+  Avg latency          : 13503 ms
+=================================================================
+```
+
+---
+
+## Текущие проблемы (найдены eval pipeline)
+
+| Проблема | Метрика | Причина |
+|---|---|---|
+| Ложные тревоги навыков | precision=0.056 | NER/LLM называет навыки "отсутствующими" даже при strong match |
+| Низкий score у strong match | MAE=0.119 | gap_node недооценивает совпадение |
+| Медленный ответ | latency=13.5s | Ollama локально; с OpenAI ~2–3s |
+
+---
+
+## LangSmith (трейсинг)
+
+Для включения автоматического трейсинга всех LLM вызовов (latency per node, токены, вход/выход):
+
+```env
+# .env
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_...
+LANGCHAIN_PROJECT=ai-job-match-assistant
+```
+
+Регистрация: https://smith.langchain.com (бесплатный tier)  
+После включения все ноды LangGraph (parse → gap → advise) трейсятся автоматически.
+
+---
 
 ## Статус
 
 | Файл | Статус |
 |---|---|
-| `eval/dataset.py` | ✅ Реализован (6 тестовых пар) |
-| `eval/metrics.py` | ✅ Реализован (Rouge-L, skill_recall, MAE) |
-| `eval/judge.py` | ✅ Реализован (GPT-4o-mini, JudgeScore) |
-| `eval/run_eval.py` | ✅ Реализован (CLI, JSONL, summary table) |
+| `eval/dataset.py` | ✅ 6 тестовых пар |
+| `eval/metrics.py` | ✅ Rouge-L, skill recall/precision/F1, MAE, latency |
+| `eval/judge.py` | ✅ GPT-4o-mini, 4 критерия (relevance/actionability/accuracy/faithfulness) |
+| `eval/run_eval.py` | ✅ CLI, latency tracking, regression comparison, JSONL |
+| `eval/results/` | ✅ Первый прогон: eval_2026-05-21.jsonl |

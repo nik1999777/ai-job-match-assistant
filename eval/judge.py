@@ -22,7 +22,11 @@ class JudgeScore(BaseModel):
     accuracy: int = Field(ge=1, le=5, description=(
         "1=skill gaps are wrong or missing, 5=all critical gaps correctly identified"
     ))
-    reasoning: str = Field(description="2-3 sentence explanation of the scores")
+    faithfulness: int = Field(ge=1, le=5, description=(
+        "1=advice contains claims not grounded in the resume/vacancy texts (hallucination), "
+        "5=every claim is directly supported by the provided texts"
+    ))
+    reasoning: str = Field(description="2-3 sentence explanation of all four scores")
 
 
 _PROMPT = ChatPromptTemplate.from_messages([
@@ -46,7 +50,8 @@ SKILL GAPS IDENTIFIED BY THE SYSTEM:
 - Missing from resume: {skills_missing}
 - Match score: {match_score}
 
-Score the advice on relevance, actionability, and accuracy (1-5 each)."""),
+Score the advice on all four criteria (1-5 each).
+Pay special attention to faithfulness: flag any claim in the advice that is NOT grounded in the resume or vacancy text."""),
 ])
 
 
