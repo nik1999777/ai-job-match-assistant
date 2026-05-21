@@ -34,12 +34,41 @@ async function fetchHistory(page: number): Promise<HistoryResponse> {
   return resp.json()
 }
 
+export interface AnalysisDetail {
+  id: number
+  created_at: string
+  mode: string
+  resume_text: string
+  vacancy_text: string
+  match_score: number | null
+  seniority: string | null
+  seniority_confidence: number | null
+  skills_found: string[]
+  skills_missing: string[]
+  llm_response: string | null
+  decision: string | null
+}
+
+async function fetchAnalysisDetail(id: number): Promise<AnalysisDetail> {
+  const resp = await fetch(`/api/analyses/${id}`, { headers: authHeaders() })
+  if (!resp.ok) throw new Error('Failed to fetch analysis')
+  return resp.json()
+}
+
 async function deleteAnalysis(id: number): Promise<void> {
   const resp = await fetch(`/api/analyses/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   })
   if (!resp.ok) throw new Error('Failed to delete analysis')
+}
+
+export function useAnalysisDetail(id: number | null) {
+  return useQuery({
+    queryKey: ['analysis', id],
+    queryFn: () => fetchAnalysisDetail(id!),
+    enabled: id !== null && !!getToken(),
+  })
 }
 
 export function useHistory(page = 1) {

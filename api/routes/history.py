@@ -31,6 +31,21 @@ class HistoryResponse(BaseModel):
     limit: int
 
 
+class AnalysisDetail(BaseModel):
+    id: int
+    created_at: str
+    mode: str
+    resume_text: str
+    vacancy_text: str
+    match_score: float | None
+    seniority: str | None
+    seniority_confidence: float | None
+    skills_found: list[str]
+    skills_missing: list[str]
+    llm_response: str | None
+    decision: str | None
+
+
 def _snippet(text: str, length: int = 80) -> str:
     return text[:length] + "…" if len(text) > length else text
 
@@ -87,6 +102,38 @@ async def get_history(
     ]
 
     return HistoryResponse(items=items, total=total, page=page, limit=limit)
+
+
+@router.get("/analyses/{analysis_id}", response_model=AnalysisDetail)
+async def get_analysis(
+    analysis_id: int,
+    db: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user_required),
+):
+    result = await db.execute(
+        select(Analysis, Session.mode)
+        .join(Session, Analysis.session_id == Session.id)
+        .where(Analysis.id == analysis_id, Session.user_id == user.id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    analysis, mode = row
+    return AnalysisDetail(
+        id=analysis.id,
+        created_at=analysis.created_at.isoformat(),
+        mode=mode,
+        resume_text=analysis.resume_text,
+        vacancy_text=analysis.vacancy_text,
+        match_score=analysis.match_score,
+        seniority=analysis.seniority,
+        seniority_confidence=analysis.seniority_confidence,
+        skills_found=_parse_skills(analysis.skills_found),
+        skills_missing=_parse_skills(analysis.skills_missing),
+        llm_response=analysis.llm_response,
+        decision=analysis.decision.value if analysis.decision else None,
+    )
 
 
 @router.delete("/analyses/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)

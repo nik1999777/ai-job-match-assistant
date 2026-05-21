@@ -18,7 +18,7 @@ function MainApp() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AppHeader mode={mode} onModeChange={setMode} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col">
         {mode === 'seeker'  && <AnalysisPage />}
         {mode === 'search'  && <JobSeekPage />}
         {mode === 'hr'      && <HRBatchPage />}
