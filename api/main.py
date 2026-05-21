@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.clients import browser_pool
 from api.db.models import init_db
-from api.routes import analyze, batch, fetch_vacancy, health, parse_resume, seek
+from api.routes import analyze, auth, batch, fetch_vacancy, health, history, parse_resume, seek
 from api.settings import settings
 
 
@@ -31,7 +31,9 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(analyze.router)
+app.include_router(history.router)
 app.include_router(batch.router)
 app.include_router(fetch_vacancy.router)
 app.include_router(parse_resume.router)

@@ -6,8 +6,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.agents.graph import build_graph
+from api.auth.deps import current_user_optional
 from api.clients.hh_client import get_vacancy_by_url
-from api.db.models import Analysis, Session, get_session
+from api.db.models import Analysis, Session, User, get_session
 from api.llm.streaming import event_stream
 
 router = APIRouter(prefix="/api", tags=["analyze"])
@@ -24,6 +25,7 @@ class AnalyzeRequest(BaseModel):
 async def analyze(
     body: AnalyzeRequest,
     db: AsyncSession = Depends(get_session),
+    user: User | None = Depends(current_user_optional),
 ) -> StreamingResponse:
     if not body.resume:
         raise HTTPException(status_code=422, detail="Provide 'resume' text")
@@ -40,7 +42,7 @@ async def analyze(
     else:
         vacancy_text = body.vacancy  # type: ignore[assignment]
 
-    session = Session(mode=body.mode)
+    session = Session(mode=body.mode, user_id=user.id if user else None)
     db.add(session)
     await db.flush()
 

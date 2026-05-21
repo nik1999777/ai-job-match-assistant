@@ -45,6 +45,11 @@ playwright>=1.44.0
 # PDF resume parsing
 pymupdf>=1.24.0
 
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+pydantic[email]>=2.0.0
+
 # Dev
 httpx==0.28.1
 pytest==8.3.4

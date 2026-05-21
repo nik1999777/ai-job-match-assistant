@@ -1,5 +1,6 @@
 import type { AnalyzeRequest } from './generated'
 import type { GapData, NodeName, ParsedData } from '../store/analysisStore'
+import { getToken } from '../store/authStore'
 
 interface StreamCallbacks {
   onNodeStart: (node: NodeName) => void
@@ -16,9 +17,13 @@ export async function streamAnalyze(
   params: AnalyzeRequest,
   callbacks: StreamCallbacks,
 ): Promise<void> {
+  const token = getToken()
   const resp = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ ...params, mode: 'seeker' }),
   })
 

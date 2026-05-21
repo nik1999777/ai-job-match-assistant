@@ -21,13 +21,26 @@ class HiringDecision(str, PyEnum):
     borderline = "borderline"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user")
+
+
 class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     mode: Mapped[str] = mapped_column(String(16))  # seeker | hr
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
+    user: Mapped["User | None"] = relationship("User", back_populates="sessions")
     analyses: Mapped[list["Analysis"]] = relationship("Analysis", back_populates="session")
 
 
