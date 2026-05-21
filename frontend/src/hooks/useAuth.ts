@@ -10,6 +10,7 @@ interface TokenResponse {
   access_token: string
   user_id: number
   email: string
+  role: 'seeker' | 'hr'
 }
 
 async function authRequest(endpoint: string, payload: AuthPayload): Promise<TokenResponse> {
@@ -29,7 +30,7 @@ export function useRegister() {
   const login = useAuthStore((s) => s.login)
   return useMutation({
     mutationFn: (payload: AuthPayload) => authRequest('/api/auth/register', payload),
-    onSuccess: (data) => login(data.access_token, data.user_id, data.email),
+    onSuccess: (data) => login(data.access_token, data.user_id, data.email, data.role),
   })
 }
 
@@ -37,6 +38,6 @@ export function useLogin() {
   const login = useAuthStore((s) => s.login)
   return useMutation({
     mutationFn: (payload: AuthPayload) => authRequest('/api/auth/login', payload),
-    onSuccess: (data) => login(data.access_token, data.user_id, data.email),
+    onSuccess: (data) => login(data.access_token, data.user_id, data.email, data.role),
   })
 }

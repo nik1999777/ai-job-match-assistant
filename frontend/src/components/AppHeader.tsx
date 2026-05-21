@@ -8,14 +8,19 @@ interface Props {
   onModeChange: (mode: AppMode) => void
 }
 
-const NAV_TABS: { id: Exclude<AppMode, 'history'>; label: string }[] = [
-  { id: 'seeker', label: 'Анализ 1:1' },
+const SEEKER_TABS: { id: Exclude<AppMode, 'history'>; label: string }[] = [
+  { id: 'seeker', label: 'Анализ' },
   { id: 'search', label: 'Поиск работы' },
+]
+
+const HR_TABS: { id: Exclude<AppMode, 'history'>; label: string }[] = [
+  { id: 'seeker', label: 'Анализ' },
   { id: 'hr',     label: 'HR' },
 ]
 
 export function AppHeader({ mode, onModeChange }: Props) {
-  const { email, logout } = useAuthStore()
+  const { email, role, logout } = useAuthStore()
+  const tabs = role === 'hr' ? HR_TABS : SEEKER_TABS
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const initial = email?.[0]?.toUpperCase() ?? '?'
@@ -37,7 +42,7 @@ export function AppHeader({ mode, onModeChange }: Props) {
       <div className="h-4 w-px bg-border shrink-0" />
 
       <nav className="flex items-center gap-1">
-        {NAV_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onModeChange(tab.id)}
@@ -62,7 +67,7 @@ export function AppHeader({ mode, onModeChange }: Props) {
             <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center shrink-0">
               {initial}
             </span>
-            <span className="text-sm text-muted-foreground max-w-[160px] truncate hidden sm:block">
+            <span className="text-sm text-muted-foreground max-w-40 truncate hidden sm:block">
               {email}
             </span>
             <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

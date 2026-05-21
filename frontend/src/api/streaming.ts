@@ -1,6 +1,6 @@
 import type { AnalyzeRequest } from './generated'
 import type { GapData, NodeName, ParsedData } from '../store/analysisStore'
-import { getToken } from '../store/authStore'
+import { getToken, getRole } from '../store/authStore'
 
 interface StreamCallbacks {
   onNodeStart: (node: NodeName) => void
@@ -24,7 +24,7 @@ export async function streamAnalyze(
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ ...params, mode: 'seeker' }),
+    body: JSON.stringify({ ...params, mode: getRole() }),
   })
 
   if (!resp.ok) {
