@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 def _langfuse_client():
-    """Return Langfuse client if configured, otherwise None."""
     from api.settings import settings
     if not settings.langfuse_public_key or not settings.langfuse_secret_key:
         return None
@@ -23,11 +22,19 @@ def _langfuse_client():
         return None
 
 
+def _get_model_name() -> str:
+    from api.settings import settings
+    if settings.llm_provider == "ollama":
+        return f"ollama/{settings.ollama_model}"
+    return f"openai/{settings.openai_model}"
+
+
 async def event_stream(
     graph,
     resume: str,
     vacancy: str,
     mode: str = "seeker",
+    user_id: str | None = None,
 ) -> AsyncGenerator[tuple[bytes, dict[str, Any]], None]:
     initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy, "mode": mode}
     final_state: dict[str, Any] = {}
@@ -36,7 +43,21 @@ async def event_stream(
     _current_node: str | None = None
 
     lf = _langfuse_client()
-    trace = lf.trace(name="analyze_pipeline", input={"mode": mode}) if lf else None
+    trace = lf.trace(
+        name="analyze_pipeline",
+        input={
+            "mode": mode,
+            "resume_snippet": resume[:200],
+            "vacancy_snippet": vacancy[:200],
+        },
+        metadata={"model": _get_model_name()},
+        tags=[mode],
+        user_id=user_id,
+    ) if lf else None
+
+    # per-node span tracking
+    node_spans: dict[str, Any] = {}
+    node_start_times: dict[str, float] = {}
     t0 = time.perf_counter()
 
     async for event in graph.astream_events(initial_state, version="v2"):
@@ -45,6 +66,9 @@ async def event_stream(
 
         if kind == "on_chain_start" and name in _NODE_NAMES:
             _current_node = name
+            node_start_times[name] = time.perf_counter()
+            if trace:
+                node_spans[name] = trace.span(name=name)
             data = json.dumps({"event": "node_start", "node": name})
             yield _sse(data), final_state
 
@@ -59,6 +83,13 @@ async def event_stream(
             output = event["data"].get("output", {})
             if isinstance(output, dict):
                 final_state.update(output)
+
+            # end the span for this node
+            if trace and name in node_spans:
+                node_latency = round((time.perf_counter() - node_start_times[name]) * 1000)
+                node_spans[name].end(
+                    metadata={"latency_ms": node_latency},
+                )
 
             if name == "parse_node":
                 payload = json.dumps({
@@ -89,13 +120,19 @@ async def event_stream(
 
     if trace:
         try:
+            seniority = final_state.get("seniority", "unknown")
             trace.update(
                 output={
                     "match_score": final_state.get("match_score"),
-                    "seniority": final_state.get("seniority"),
+                    "seniority": seniority,
                     "skills_missing": final_state.get("skills_missing", []),
                 },
-                metadata={"latency_ms": round((time.perf_counter() - t0) * 1000), "mode": mode},
+                metadata={
+                    "model": _get_model_name(),
+                    "latency_ms": round((time.perf_counter() - t0) * 1000),
+                    "mode": mode,
+                },
+                tags=[mode, seniority],
             )
             lf.flush()
         except Exception as exc:
