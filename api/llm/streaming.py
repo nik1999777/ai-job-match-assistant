@@ -5,20 +5,20 @@ from typing import Any, AsyncGenerator
 logger = logging.getLogger(__name__)
 
 
-def _langfuse_callback():
-    """Return Langfuse CallbackHandler if configured, otherwise None."""
+def _langfuse_client():
+    """Return Langfuse client if configured, otherwise None."""
     from api.settings import settings
     if not settings.langfuse_public_key or not settings.langfuse_secret_key:
         return None
     try:
-        from langfuse.langchain import CallbackHandler
-        return CallbackHandler(
+        from langfuse import Langfuse
+        return Langfuse(
             public_key=settings.langfuse_public_key,
             secret_key=settings.langfuse_secret_key,
             host=settings.langfuse_host,
         )
     except Exception as exc:
-        logger.warning("Langfuse callback unavailable: %s", exc)
+        logger.warning("Langfuse client unavailable: %s", exc)
         return None
 
 
@@ -34,10 +34,7 @@ async def event_stream(
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
     _current_node: str | None = None
 
-    handler = _langfuse_callback()
-    stream_config = {"callbacks": [handler]} if handler else {}
-
-    async for event in graph.astream_events(initial_state, version="v2", config=stream_config):
+    async for event in graph.astream_events(initial_state, version="v2"):
         kind: str = event["event"]
         name: str = event.get("name", "")
 
@@ -88,9 +85,30 @@ async def event_stream(
 
 
 async def run_graph(graph, resume: str, vacancy: str, mode: str = "seeker") -> dict[str, Any]:
+    import time
+    lf = _langfuse_client()
+    trace = lf.trace(name="analyze_pipeline", input={"mode": mode}) if lf else None
+
+    node_spans: dict[str, Any] = {}
     final_state: dict[str, Any] = {}
+    t0 = time.perf_counter()
+
     async for _, state in event_stream(graph, resume, vacancy, mode=mode):
         final_state = state
+
+    latency_ms = round((time.perf_counter() - t0) * 1000)
+
+    if trace:
+        trace.update(
+            output={
+                "match_score": final_state.get("match_score"),
+                "seniority": final_state.get("seniority"),
+                "skills_missing": final_state.get("skills_missing", []),
+            },
+            metadata={"latency_ms": latency_ms, "mode": mode},
+        )
+        lf.flush()
+
     return final_state
 
 
