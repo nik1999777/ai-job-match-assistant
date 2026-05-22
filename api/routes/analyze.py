@@ -56,10 +56,10 @@ async def analyze(
     await db.refresh(analysis)
 
     graph = build_graph()
+    user_id = str(user.id) if user else None
 
     async def generate():
         result = None
-        user_id = str(user.id) if user else None
         async for chunk, state in event_stream(graph, resume_text, vacancy_text, mode=body.mode, user_id=user_id):
             yield chunk
             result = state
