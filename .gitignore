@@ -25,3 +25,5 @@ qdrant_storage/
 # Node
 node_modules/
 frontend/dist/
+mlruns/
+mlflow.db

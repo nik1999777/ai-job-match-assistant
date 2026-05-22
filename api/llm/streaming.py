@@ -1,5 +1,25 @@
 import json
+import logging
 from typing import Any, AsyncGenerator
+
+logger = logging.getLogger(__name__)
+
+
+def _langfuse_callback():
+    """Return Langfuse CallbackHandler if configured, otherwise None."""
+    from api.settings import settings
+    if not settings.langfuse_public_key or not settings.langfuse_secret_key:
+        return None
+    try:
+        from langfuse.langchain import CallbackHandler
+        return CallbackHandler(
+            public_key=settings.langfuse_public_key,
+            secret_key=settings.langfuse_secret_key,
+            host=settings.langfuse_host,
+        )
+    except Exception as exc:
+        logger.warning("Langfuse callback unavailable: %s", exc)
+        return None
 
 
 async def event_stream(
@@ -14,7 +34,10 @@ async def event_stream(
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
     _current_node: str | None = None
 
-    async for event in graph.astream_events(initial_state, version="v2"):
+    handler = _langfuse_callback()
+    stream_config = {"callbacks": [handler]} if handler else {}
+
+    async for event in graph.astream_events(initial_state, version="v2", config=stream_config):
         kind: str = event["event"]
         name: str = event.get("name", "")
 

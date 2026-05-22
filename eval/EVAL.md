@@ -124,19 +124,36 @@ EVAL SUMMARY  (6 cases, 2026-05-21)
 
 ---
 
-## LangSmith (трейсинг)
+## MLflow (experiment tracking)
 
-Для включения автоматического трейсинга всех LLM вызовов (latency per node, токены, вход/выход):
+Каждый прогон eval автоматически логируется в MLflow. Для просмотра:
 
-```env
-# .env
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=lsv2_pt_...
-LANGCHAIN_PROJECT=ai-job-match-assistant
+```bash
+mlflow ui --port 5001
+# открываешь http://localhost:5001
 ```
 
-Регистрация: https://smith.langchain.com (бесплатный tier)  
-После включения все ноды LangGraph (parse → gap → advise) трейсятся автоматически.
+Показывает историю всех runs, графики метрик по времени, сравнение runs между собой.
+
+## Langfuse (LLM трейсинг)
+
+Локальный аналог LangSmith. Трейсит каждый LLM вызов: ноды pipeline, токены, latency.
+
+```bash
+# Запустить
+docker compose up -d langfuse
+# Открыть http://localhost:3000 → зарегистрироваться → Settings → API Keys
+```
+
+```env
+# .env — вставить ключи из Langfuse UI
+LANGFUSE_HOST=http://localhost:3000
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+```
+
+После этого каждый запрос к `/api/analyze`, `/api/seek`, `/api/batch`  
+автоматически появляется в Langfuse с breakdown по нодам `parse → gap → advise`.
 
 ---
 

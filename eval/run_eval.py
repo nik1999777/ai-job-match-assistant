@@ -18,6 +18,8 @@ import time
 from datetime import date
 from pathlib import Path
 
+import mlflow
+
 from eval.dataset import TEST_CASES, EvalCase
 from eval.judge import judge_advice
 from eval.metrics import (
@@ -206,6 +208,46 @@ async def main(run_judge: bool) -> None:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
     print(f"\nResults saved to {out_file}")
+    _log_mlflow(results, run_judge)
+
+
+def _log_mlflow(results: list[dict], run_judge: bool) -> None:
+    """Log eval results to MLflow for experiment tracking."""
+    try:
+        from api.settings import settings
+        mlflow.set_experiment("job-match-eval")
+        n = len(results)
+        with mlflow.start_run(run_name=f"eval_{date.today()}"):
+            mlflow.log_params({
+                "n_cases": n,
+                "with_judge": run_judge,
+                "llm_provider": settings.llm_provider,
+                "model": settings.ollama_model if settings.llm_provider == "ollama" else settings.openai_model,
+            })
+            in_range = sum(1 for r in results if r["match_score_in_range"])
+            seniority_ok = sum(1 for r in results if r["seniority_correct"])
+            mlflow.log_metrics({
+                "match_in_range_pct": round(in_range / n, 3),
+                "match_score_mae": _avg(results, "match_score_mae") or 0.0,
+                "seniority_accuracy": round(seniority_ok / n, 3),
+                "skill_recall": _avg(results, "skill_recall") or 0.0,
+                "skill_precision": _avg(results, "skill_precision") or 0.0,
+                "skill_f1": _avg(results, "skill_f1") or 0.0,
+                "rouge_l": _avg(results, "rouge_l") or 0.0,
+                "avg_latency_ms": _avg(results, "latency_ms") or 0.0,
+            })
+            judge_rows = [r for r in results if r.get("judge_relevance") is not None]
+            if judge_rows:
+                mlflow.log_metrics({
+                    "judge_relevance": _avg(judge_rows, "judge_relevance") or 0.0,
+                    "judge_actionability": _avg(judge_rows, "judge_actionability") or 0.0,
+                    "judge_accuracy": _avg(judge_rows, "judge_accuracy") or 0.0,
+                    "judge_faithfulness": _avg(judge_rows, "judge_faithfulness") or 0.0,
+                })
+            mlflow.log_artifact(str(RESULTS_DIR / f"eval_{date.today()}.jsonl"))
+        print("MLflow run logged → run: mlflow ui --port 5001")
+    except Exception as exc:
+        logger.warning("MLflow logging skipped: %s", exc)
 
 
 if __name__ == "__main__":

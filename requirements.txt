@@ -38,6 +38,8 @@ openai==1.58.1
 # Eval
 rouge-score==0.1.2
 nltk==3.9.1
+mlflow>=2.10.0
+langfuse>=2.0.0
 
 # Playwright (vacancy page scraping — bypasses DDoS Guard)
 playwright>=1.44.0

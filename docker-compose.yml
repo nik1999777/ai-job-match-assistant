@@ -25,6 +25,35 @@ services:
       timeout: 5s
       retries: 5
 
+  # Creates the langfuse database if it doesn't exist (idempotent)
+  langfuse-db-init:
+    image: postgres:16
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-jobmatch}
+    command: >
+      sh -c "psql -h postgres -U ${POSTGRES_USER:-jobmatch} -tc
+      \"SELECT 1 FROM pg_database WHERE datname='langfuse'\" | grep -q 1
+      || psql -h postgres -U ${POSTGRES_USER:-jobmatch} -c 'CREATE DATABASE langfuse'"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  langfuse:
+    image: langfuse/langfuse:2
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jobmatch}:${POSTGRES_PASSWORD:-jobmatch}@postgres:5432/langfuse
+      NEXTAUTH_SECRET: dev-langfuse-nextauth-secret
+      SALT: dev-langfuse-salt-string
+      NEXTAUTH_URL: http://localhost:3000
+      TELEMETRY_ENABLED: "false"
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
   postgres_data:
