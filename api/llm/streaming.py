@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Any, AsyncGenerator
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,10 @@ async def event_stream(
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
     _current_node: str | None = None
 
+    lf = _langfuse_client()
+    trace = lf.trace(name="analyze_pipeline", input={"mode": mode}) if lf else None
+    t0 = time.perf_counter()
+
     async for event in graph.astream_events(initial_state, version="v2"):
         kind: str = event["event"]
         name: str = event.get("name", "")
@@ -44,7 +49,6 @@ async def event_stream(
             yield _sse(data), final_state
 
         elif kind == "on_chat_model_stream" and _current_node == "advise_node":
-            # only stream tokens from the advice node — parse_node returns JSON, not prose
             chunk = event["data"].get("chunk")
             if chunk and getattr(chunk, "content", None):
                 data = json.dumps({"event": "token", "content": chunk.content})
@@ -83,32 +87,25 @@ async def event_stream(
     data = json.dumps({"event": "done", "state": _serialisable(final_state)})
     yield _sse(data), final_state
 
+    if trace:
+        try:
+            trace.update(
+                output={
+                    "match_score": final_state.get("match_score"),
+                    "seniority": final_state.get("seniority"),
+                    "skills_missing": final_state.get("skills_missing", []),
+                },
+                metadata={"latency_ms": round((time.perf_counter() - t0) * 1000), "mode": mode},
+            )
+            lf.flush()
+        except Exception as exc:
+            logger.warning("Langfuse flush failed: %s", exc)
+
 
 async def run_graph(graph, resume: str, vacancy: str, mode: str = "seeker") -> dict[str, Any]:
-    import time
-    lf = _langfuse_client()
-    trace = lf.trace(name="analyze_pipeline", input={"mode": mode}) if lf else None
-
-    node_spans: dict[str, Any] = {}
     final_state: dict[str, Any] = {}
-    t0 = time.perf_counter()
-
     async for _, state in event_stream(graph, resume, vacancy, mode=mode):
         final_state = state
-
-    latency_ms = round((time.perf_counter() - t0) * 1000)
-
-    if trace:
-        trace.update(
-            output={
-                "match_score": final_state.get("match_score"),
-                "seniority": final_state.get("seniority"),
-                "skills_missing": final_state.get("skills_missing", []),
-            },
-            metadata={"latency_ms": latency_ms, "mode": mode},
-        )
-        lf.flush()
-
     return final_state
 
 
@@ -116,7 +113,6 @@ def sse_encode(payload: str) -> bytes:
     return f"data: {payload}\n\n".encode()
 
 
-# backwards-compat alias used internally
 _sse = sse_encode
 
 
