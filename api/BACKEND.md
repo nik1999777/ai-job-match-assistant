@@ -52,7 +52,11 @@ api/
 │
 ├── llm/
 │   ├── provider.py    ← фабрика: ChatOpenAI (openai) или ChatOllama (langchain-ollama)
-│   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; принимает mode
+│   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; Langfuse трейсинг:
+│                          trace per request (user_id, session_id, tags=[mode, seniority])
+│                          span() для parse_node/gap_node — input/output/latency_ms
+│                          generation() для advise_node — model name + LLM ответ
+│                          trace.score(): match_score, latency_s, skills_missing_count
 │
 ├── ml/
 │   ├── skill_extractor.py  ← BERT NER: найти навыки в тексте

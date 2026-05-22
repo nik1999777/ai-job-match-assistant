@@ -35,6 +35,7 @@ async def event_stream(
     vacancy: str,
     mode: str = "seeker",
     user_id: str | None = None,
+    session_id: str | None = None,
 ) -> AsyncGenerator[tuple[bytes, dict[str, Any]], None]:
     initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy, "mode": mode}
     final_state: dict[str, Any] = {}
@@ -53,6 +54,7 @@ async def event_stream(
         metadata={"model": _get_model_name()},
         tags=[mode],
         user_id=user_id,
+        session_id=session_id,
     ) if lf else None
 
     # per-node span tracking
@@ -68,7 +70,17 @@ async def event_stream(
             _current_node = name
             node_start_times[name] = time.perf_counter()
             if trace:
-                node_spans[name] = trace.span(name=name)
+                node_input = event["data"].get("input", {})
+                trimmed_input = _trim_state(node_input) if isinstance(node_input, dict) else str(node_input)
+                if name == "advise_node":
+                    # generation() = LLM call — tracks model, tokens, cost in Langfuse Generations tab
+                    node_spans[name] = trace.generation(
+                        name=name,
+                        model=_get_model_name(),
+                        input=trimmed_input,
+                    )
+                else:
+                    node_spans[name] = trace.span(name=name, input=trimmed_input)
             data = json.dumps({"event": "node_start", "node": name})
             yield _sse(data), final_state
 
@@ -84,12 +96,18 @@ async def event_stream(
             if isinstance(output, dict):
                 final_state.update(output)
 
-            # end the span for this node
             if trace and name in node_spans:
                 node_latency = round((time.perf_counter() - node_start_times[name]) * 1000)
-                node_spans[name].end(
-                    metadata={"latency_ms": node_latency},
-                )
+                if name == "advise_node":
+                    node_spans[name].end(
+                        output=output.get("llm_response", "") if isinstance(output, dict) else str(output),
+                        metadata={"latency_ms": node_latency},
+                    )
+                else:
+                    node_spans[name].end(
+                        output=_trim_state(output) if isinstance(output, dict) else str(output),
+                        metadata={"latency_ms": node_latency},
+                    )
 
             if name == "parse_node":
                 payload = json.dumps({
@@ -121,19 +139,30 @@ async def event_stream(
     if trace:
         try:
             seniority = final_state.get("seniority", "unknown")
+            match_score = final_state.get("match_score")
+            total_latency = round((time.perf_counter() - t0) * 1000)
+
             trace.update(
                 output={
-                    "match_score": final_state.get("match_score"),
+                    "match_score": match_score,
                     "seniority": seniority,
                     "skills_missing": final_state.get("skills_missing", []),
                 },
                 metadata={
                     "model": _get_model_name(),
-                    "latency_ms": round((time.perf_counter() - t0) * 1000),
+                    "latency_ms": total_latency,
                     "mode": mode,
                 },
                 tags=[mode, seniority],
             )
+
+            # Scores tab: numeric quality signal per trace
+            if match_score is not None:
+                trace.score(name="match_score", value=float(match_score))
+            trace.score(name="latency_s", value=round(total_latency / 1000, 2))
+            skills_missing_count = len(final_state.get("skills_missing", []))
+            trace.score(name="skills_missing_count", value=float(skills_missing_count))
+
             lf.flush()
         except Exception as exc:
             logger.warning("Langfuse flush failed: %s", exc)
@@ -162,6 +191,17 @@ def _serialisable(state: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError):
             safe[k] = str(v)
     return safe
+
+
+def _trim_state(state: dict[str, Any], max_str: int = 500) -> dict[str, Any]:
+    """Truncate long string values so Langfuse spans stay readable."""
+    result: dict[str, Any] = {}
+    for k, v in state.items():
+        if isinstance(v, str) and len(v) > max_str:
+            result[k] = v[:max_str] + "…"
+        else:
+            result[k] = v
+    return _serialisable(result)
 
 
 def _serialisable_list(items: list[Any]) -> list[Any]:

@@ -42,9 +42,12 @@ async def analyze(
     else:
         vacancy_text = body.vacancy  # type: ignore[assignment]
 
+    user_id = str(user.id) if user else None
+
     session = Session(mode=body.mode, user_id=user.id if user else None)
     db.add(session)
     await db.flush()
+    session_id = str(session.id)
 
     analysis = Analysis(
         session_id=session.id,
@@ -56,11 +59,13 @@ async def analyze(
     await db.refresh(analysis)
 
     graph = build_graph()
-    user_id = str(user.id) if user else None
 
     async def generate():
         result = None
-        async for chunk, state in event_stream(graph, resume_text, vacancy_text, mode=body.mode, user_id=user_id):
+        async for chunk, state in event_stream(
+            graph, resume_text, vacancy_text,
+            mode=body.mode, user_id=user_id, session_id=session_id,
+        ):
             yield chunk
             result = state
 

@@ -76,7 +76,12 @@ JWT_EXPIRE_MINUTES=10080
 ### 3. Запустить инфраструктуру
 
 ```bash
+# Минимум: PostgreSQL + Qdrant
 docker-compose up -d postgres qdrant
+
+# + Langfuse (LLM трейсинг)
+docker-compose up -d postgres qdrant langfuse
+# Открыть http://localhost:3000 → зарегистрироваться → Settings → API Keys → вставить в .env
 ```
 
 ### 4. Применить миграции и запустить backend
@@ -141,14 +146,34 @@ python -m scripts.index_vacancies --query "Python Backend" --query "FastAPI" --p
 ```bash
 source .venv/bin/activate
 
-# Offline метрики (Rouge-L, skill recall, match score) — без LLM, бесплатно
+# Offline метрики (skill recall/precision/F1, Rouge-L, latency) — без LLM, бесплатно
 python -m eval.run_eval
 
 # + LLM-as-a-judge через GPT-4o-mini (требует OPENAI_API_KEY)
 python -m eval.run_eval --judge
 ```
 
-Результаты сохраняются в `eval/results/eval_YYYY-MM-DD.jsonl`.
+Результаты сохраняются в `eval/results/eval_YYYY-MM-DD.jsonl` и логируются в MLflow.  
+При каждом запуске показывается regression comparison vs предыдущий прогон (↑ улучшение / ↓ регрессия).
+
+---
+
+## Observability
+
+| Инструмент | Порт | Назначение |
+|---|---|---|
+| **Langfuse** | 3000 | Production LLM трейсинг: spans по нодам, Generations (LLM вызовы), Scores, Sessions |
+| **MLflow** | 5001 | Eval experiment tracking: история прогонов, сравнение метрик |
+
+```bash
+# Langfuse (через docker-compose)
+docker-compose up -d langfuse
+# → http://localhost:3000
+
+# MLflow UI (без docker)
+mlflow ui --port 5001
+# → http://localhost:5001
+```
 
 ---
 
