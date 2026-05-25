@@ -9,11 +9,14 @@
 
 ```
 ml/
-├── train_ner.py          ← fine-tuning BERT для NER (навыки)
-├── train_seniority.py    ← обучение DistilBERT + LoRA (уровень)
+├── train_ner.py          ← fine-tuning BERT для NER (навыки)         [📅 следующий блок]
+├── train_seniority.py    ← обучение DistilBERT + LoRA (уровень)      [📅 следующий блок]
 ├── data/
-│   ├── ner_dataset.jsonl       ← размеченные примеры для NER
-│   └── seniority_dataset.jsonl ← резюме с метками junior/middle/senior
+│   ├── seniority_dataset.jsonl ← 90 seed примеров: 30×junior/middle/senior
+│   └── ner_dataset.jsonl       ← 63 BIO-tagged примера (B-SKILL/I-SKILL/O)
+├── models/               ← сохранённые веса после fine-tuning         [📅 следующий блок]
+├── scripts/
+│   └── generate_dataset.py ← расширение датасетов через OpenAI GPT-4o-mini
 └── ML.md                 ← этот файл
 ```
 
@@ -64,13 +67,18 @@ Pipeline:      HuggingFace pipeline("ner", aggregation_strategy="simple")
 Плюс:     работает с русским текстом без обучения
 ```
 
-**Финальный подход (Неделя 4, после сбора датасета):**
+**Финальный подход (следующий блок — данные уже готовы):**
 
 ```
 Базовая модель: distilbert-base-uncased  (66M параметров)
 Адаптер:        LoRA rank=16  (~1% параметров обучаем, 99% заморожены)
 Классы:         junior | middle | senior
+Датасет:        90 seed примеров в ml/data/seniority_dataset.jsonl
+                + генерация до 500+ через ml/scripts/generate_dataset.py
 ```
+
+**Текущий результат zero-shot:** seniority_accuracy = 42% (5/12 eval кейсов)  
+**Цель после LoRA:** > 80%
 
 **Почему LoRA?**  
 Full fine-tuning DistilBERT требует обновления всех 66M параметров.  
@@ -84,6 +92,18 @@ LoRA добавляет маленькие матрицы (rank=16) поверх
 {"text": "5 лет Python, FastAPI, team lead, архитектура...", "label": "senior"}
 ```
 
+**Расширение датасета:**
+```bash
+# Сгенерировать ещё 150 примеров (по 50 на каждый класс)
+python -m ml.scripts.generate_dataset --task seniority --n 150
+
+# Только junior
+python -m ml.scripts.generate_dataset --task seniority --n 50 --label junior
+
+# Статистика текущего датасета
+python -m ml.scripts.generate_dataset --task stats
+```
+
 ---
 
 ## Статус
@@ -92,7 +112,9 @@ LoRA добавляет маленькие матрицы (rank=16) поверх
 |---|---|
 | `api/ml/skill_extractor.py` | ✅ dslim/bert-base-NER, lazy @cache, ## subword filter |
 | `api/ml/skill_matcher.py` | ✅ exact norm + BAAI/bge cosine, configurable threshold |
-| `api/ml/seniority_clf.py` | ✅ zero-shot xlm-roberta-large-xnli, multilingual |
+| `api/ml/seniority_clf.py` | ✅ zero-shot xlm-roberta-large-xnli (accuracy 42% → цель LoRA: 80%+) |
+| `ml/data/seniority_dataset.jsonl` | ✅ 90 seed примеров (30×junior/middle/senior), RU+EN, 17 доменов |
+| `ml/data/ner_dataset.jsonl` | ✅ 63 BIO-tagged примера |
+| `ml/scripts/generate_dataset.py` | ✅ LLM-генерация через GPT-4o-mini, дедупликация, валидация |
 | `ml/train_ner.py` | 📅 следующий блок |
 | `ml/train_seniority.py` | 📅 следующий блок |
-| `ml/data/` | 📅 следующий блок |

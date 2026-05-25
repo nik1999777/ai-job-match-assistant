@@ -19,7 +19,7 @@ eval/
 ├── run_eval.py       ← запускает прогон, сохраняет результаты, regression comparison, MLflow
 ├── judge.py          ← LLM-as-a-judge: GPT-4o-mini оценивает наш вывод
 ├── metrics.py        ← offline метрики: advice_similarity, Rouge-L, skill recall/precision/F1, MAE
-├── dataset.py        ← 8 тестовых пар + референсные ответы
+├── dataset.py        ← 12 тестовых пар + референсные ответы
 ├── results/
 │   └── eval_YYYY-MM-DD.jsonl  ← история прогонов
 └── EVAL.md           ← этот файл
@@ -70,18 +70,22 @@ Skill precision : 0.540  (⚠ -0.230 vs baseline)
 
 ## Тестовый датасет (`dataset.py`)
 
-8 кейсов, покрывающих ключевые сценарии:
+12 кейсов, покрывающих ключевые сценарии:
 
 | # | Описание | Expected match | Difficulty |
 |---|---|---|---|
 | 1 | Python backend → ML Engineer | 0.10–0.40 | partial match |
 | 2 | Senior Frontend → Senior Frontend | 0.60–1.00 | strong match |
-| 3 | Junior → Senior Full-Stack | 0.20–0.60 | seniority gap |
+| 3 | Junior → Senior Full-Stack | 0.20–0.60 | seniority gap (-20% penalty) |
 | 4 | DevOps/SRE → DevOps | 0.65–0.95 | strong match, semantic (GitLab CI ≈ GitLab) |
 | 5 | Data Analyst → Data Scientist | 0.10–0.45 | missing ML libs |
 | 6 | Full-stack Python/React → Python Backend | 0.60–0.90 | good match |
 | 7 | UX Designer → ML Engineer | 0.00–0.10 | completely irrelevant |
-| 8 | Russian ML Engineer → LLM Engineer (RU) | 0.55–0.90 | Russian language resume |
+| 8 | Russian ML Engineer → LLM Engineer (RU) | 0.35–0.90 | Russian resume + seniority penalty |
+| 9 | Middle Python Backend → Senior Backend | 0.40–0.85 | good skill match, seniority gap (-10%) |
+| 10 | Junior ML student → ML Engineer middle | 0.05–0.30 | missing production stack |
+| 11 | Russian Senior Frontend → Senior Frontend (RU) | 0.55–1.00 | full Russian case, strong match |
+| 12 | Python Backend → Frontend React | 0.00–0.20 | career change, poor match |
 
 ---
 
@@ -101,18 +105,18 @@ python -m eval.run_eval --judge
 
 ```
 =================================================================
-EVAL SUMMARY  (8 cases, 2026-05-22)
+EVAL SUMMARY  (12 cases, 2026-05-25)
 =================================================================
-  Match score in range : 7/8  (88%)
-  Match score MAE      : 0.025
-  Seniority accuracy   : 6/8  (75%)
+  Match score in range : 10/12  (83%)
+  Match score MAE      : 0.017
+  Seniority accuracy   : 5/12  (42%)  ← цель LoRA: > 80%
 
-  Skill recall         : 0.800
-  Skill precision      : 0.619
-  Skill F1             : 0.670
-  Advice similarity    : 0.812
-  Rouge-L (advice)     : 0.139
-  Avg latency          : ~8000 ms (Ollama)
+  Skill recall         : 0.917
+  Skill precision      : 0.501
+  Skill F1             : 0.543
+  Advice similarity    : 0.787
+  Rouge-L (advice)     : 0.108
+  Avg latency          : 13067 ms (Ollama; OpenAI ~2–3s)
 =================================================================
 ```
 
@@ -122,10 +126,18 @@ EVAL SUMMARY  (8 cases, 2026-05-22)
 
 | Проблема | Было | Стало | Решение |
 |---|---|---|---|
-| Ложные тревоги навыков | precision=0.056 | precision=0.619 | LLM-primary + NER-supplement; фильтр ## subword-токенов |
-| Точность сопоставления | MAE=0.119 | MAE=0.025 | semantic matching через BAAI/bge (GitLab CI ≈ GitLab) |
-| Бесполезная метрика текста | rouge_l=0.031 | advice_similarity=0.812 | косинусное сходство эмбеддингов вместо n-gram overlap |
+| Ложные тревоги навыков | precision=0.056 | precision=0.501 | LLM-primary + NER-supplement; фильтр ## subword-токенов |
+| Точность сопоставления | MAE=0.119 | MAE=0.017 | semantic matching BAAI/bge + seniority penalty |
+| Seniority игнорировался в score | score=1.0 для junior→senior | penalty -20% | _seniority_penalty() в gap_node |
+| Бесполезная метрика текста | rouge_l=0.031 | advice_similarity=0.787 | косинусное сходство эмбеддингов вместо n-gram overlap |
 | Язык ответа | иногда English на RU резюме | всегда правильный | detect_language() → {language} в промпт |
+
+## Известные ограничения (цели для LoRA)
+
+| Проблема | Метрика | Причина |
+|---|---|---|
+| Seniority accuracy 42% | seniority_correct=5/12 | zero-shot xlm-roberta — нет fine-tuning на наших данных |
+| Precision=0 на perfect-match кейсах | кейсы #4, #6, #11 | LLM (Ollama) предсказывает лишние "пробелы" когда expected_missing=[] |
 
 ---
 
@@ -166,8 +178,8 @@ LANGFUSE_SECRET_KEY=sk-lf-...
 
 | Файл | Статус |
 |---|---|
-| `eval/dataset.py` | ✅ 8 тестовых пар (включая Russian resume, irrelevant case) |
+| `eval/dataset.py` | ✅ 12 тестовых пар (RU, irrelevant, seniority gap, career change) |
 | `eval/metrics.py` | ✅ advice_similarity, Rouge-L, skill recall/precision/F1, MAE, latency |
 | `eval/judge.py` | ✅ GPT-4o-mini, 4 критерия (relevance/actionability/accuracy/faithfulness) |
 | `eval/run_eval.py` | ✅ CLI, latency tracking, regression comparison, MLflow logging, JSONL |
-| `eval/results/` | ✅ eval_2026-05-21.jsonl, eval_2026-05-22.jsonl |
+| `eval/results/` | ✅ eval_2026-05-21.jsonl, eval_2026-05-22.jsonl, eval_2026-05-25.jsonl |

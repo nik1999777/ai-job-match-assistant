@@ -161,7 +161,7 @@ POST /api/analyze
 Выход: state + {
     "skills_found":  ["python", "pytorch"],        # пересечение
     "skills_missing": ["langchain", "qdrant"],      # vacancy \ resume
-    "match_score": 0.4,                            # |found| / |vacancy|
+    "match_score": 0.4,                            # skill_score * (1 - seniority_penalty)
     "seniority": "middle",                         # DistilBERT + LoRA
     "seniority_confidence": 0.87,
     "similar_vacancies": [                         # Qdrant top-3
@@ -179,11 +179,15 @@ NER(resume text)         ──►    (supplement)
 parse_node.vacancy_skills ──► merge_skills() ──► vacancy_skills
 NER(vacancy text)          ──►   (supplement)
 
-resume_skills + vacancy_skills ──► match_skills() ──► found, missing, score
+resume_skills + vacancy_skills ──► match_skills() ──► found, missing, raw_score
   Stage 1: exact normalized match (C++ → c++, GitLab CI → gitlabci)
   Stage 2: cosine similarity via BAAI/bge-small (Postgres ≈ PostgreSQL, LoRA ≈ fine-tuning)
 
 resume text ──► SeniorityClassifier (xlm-roberta) ──► seniority
+parsed.vacancy_seniority_hint ──► _seniority_penalty() ──► penalty (0–20%)
+match_score = round(raw_score * (1 - penalty), 3)
+  junior → senior vacancy: -20%  |  middle → senior: -10%  |  same level: 0%
+  "not specified" → 0% (нет данных — штраф не применяем)
 
 vacancy text ──► Qdrant hybrid search ──► top-3 похожих вакансий
 
@@ -540,7 +544,7 @@ python -m scripts.index_vacancies --query "Product Manager" --query "iOS раз�
 
 ```
 eval/
-├── dataset.py        — 8 тестовых пар EvalCase: resume + vacancy + ground truth
+├── dataset.py        — 12 тестовых пар EvalCase: resume + vacancy + ground truth
 ├── metrics.py        — offline метрики без LLM: advice_similarity, Rouge-L, skill recall/precision/F1, MAE, latency
 ├── judge.py          — LLM-as-a-judge: GPT-4o-mini оценивает 4 критерия (1-5)
 ├── run_eval.py       — запуск прогона: latency, regression comparison, MLflow logging, JSONL
@@ -767,9 +771,27 @@ Ollama требует GPU/MPS — запускается отдельно на �
   eval/dataset.py                — 8 кейсов (добавлены #7 UX Designer→ML, #8 Russian ML→LLM Engineer)
                                    исправлены диапазоны #2, #3, #4 по реальным результатам
 
+Неделя 4 (DONE ✅) — Seniority penalty + Training data + Eval expansion:
+  api/agents/nodes/gap.py        — _seniority_penalty(): 10% штраф/уровень, max 20%
+                                   vacancy_seniority_hint из parse_node → match_score скорректирован
+                                   "not specified" → 0% (нет данных — штраф не применяем)
+  eval/dataset.py                — 12 кейсов (добавлены #9 seniority gap, #10 junior ML,
+                                   #11 RU senior frontend, #12 career change backend→frontend)
+  ml/data/seniority_dataset.jsonl — 90 seed примеров (30 junior / 30 middle / 30 senior)
+                                    RU + EN, 17 доменов (Python backend, frontend, ML, DevOps...)
+  ml/data/ner_dataset.jsonl      — 63 BIO-tagged примера (B-SKILL / I-SKILL / O)
+                                   tech skills в контексте RU + EN фраз резюме/вакансий
+  ml/scripts/generate_dataset.py — LLM-генерация датасетов через OpenAI GPT-4o-mini
+                                   python -m ml.scripts.generate_dataset --task seniority --n 150
+                                   дедупликация + валидация + append к существующему файлу
+
+Результаты eval (2026-05-25, 12 кейсов):
+  match_in_range: 10/12 (83%)  |  MAE: 0.017  |  recall: 0.917  |  F1: 0.543
+  seniority_accuracy: 5/12 (42%) ← целевой показатель для LoRA fine-tuning
+
 Следующий блок:
-  ml/train_seniority.py          — обучение LoRA модели (PEFT/LoRA fine-tuning)
-  ml/train_ner.py                — fine-tuning NER на реальных данных
+  ml/train_seniority.py          — LoRA fine-tuning на seniority_dataset.jsonl
+  ml/train_ner.py                — fine-tuning NER на ner_dataset.jsonl
   README.md + финальная документация
 ```
 

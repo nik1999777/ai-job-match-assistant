@@ -47,7 +47,9 @@ api/
 │   └── nodes/
 │       ├── parse.py   ← узел 1: LLM → структурированный JSON из резюме/вакансии
 │       │                smart_truncate_resume() — приоритет секции навыков при обрезке
-│       ├── gap.py     ← узел 2: ML навыки + RAG похожие вакансии + auto-index вакансии в Qdrant
+│       ├── gap.py     ← узел 2: ML навыки + seniority penalty + RAG + auto-index в Qdrant
+│       │                _seniority_penalty(candidate, vacancy_hint): 10%/уровень, max 20%
+│       │                match_score = skill_score * (1 - penalty); "not specified" → 0%
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
 ├── llm/
