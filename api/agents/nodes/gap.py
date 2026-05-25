@@ -22,8 +22,10 @@ _SENIORITY_LEVELS = {"junior": 0, "middle": 1, "senior": 2}
 
 def _seniority_penalty(candidate: str, vacancy_hint: str) -> float:
     """10% penalty per seniority level underqualification, capped at 20%."""
+    if vacancy_hint not in _SENIORITY_LEVELS:
+        return 0.0
     c = _SENIORITY_LEVELS.get(candidate, 1)
-    v = _SENIORITY_LEVELS.get(vacancy_hint, 1)  # "not specified" → 1, symmetric → no penalty
+    v = _SENIORITY_LEVELS[vacancy_hint]
     gap = v - c
     if gap <= 0:
         return 0.0

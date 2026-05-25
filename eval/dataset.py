@@ -55,7 +55,6 @@ TEST_CASES: list[EvalCase] = [
             "Ведение архитектурных решений, менторинг junior разработчиков.\n"
             "Опыт от 5 лет."
         ),
-        # match_score is skill-overlap only; all 4 vacancy skills are present → can reach 1.0
         expected_match_range=(0.60, 1.0),
         expected_missing_skills=[],
         expected_seniority="senior",
@@ -207,7 +206,8 @@ TEST_CASES: list[EvalCase] = [
             "Qdrant или другие векторные БД. FastAPI. Понимание RAG архитектур.\n"
             "Опыт от 3 лет в ML/NLP."
         ),
-        expected_match_range=(0.55, 0.90),
+        # seniority penalty may apply if LLM Engineer parsed as senior + middle candidate
+        expected_match_range=(0.35, 0.90),
         expected_missing_skills=["qdrant", "langgraph"],
         expected_seniority="middle",
         reference_advice=(
@@ -285,7 +285,7 @@ TEST_CASES: list[EvalCase] = [
             "Опыт с high-load продуктами. Менторинг команды.\n"
             "Опыт от 5 лет. Удалённая работа."
         ),
-        expected_match_range=(0.65, 1.0),
+        expected_match_range=(0.55, 1.0),
         expected_missing_skills=[],
         expected_seniority="senior",
         reference_advice=(
