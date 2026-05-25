@@ -51,7 +51,8 @@ api/
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
 ├── llm/
-│   ├── provider.py    ← фабрика: ChatOpenAI (openai) или ChatOllama (langchain-ollama)
+│   ├── provider.py    ← фабрика: ChatOpenAI/Claude (prod) или ChatOllama (dev only)
+│   ├── language.py    ← detect_language(text): Cyrillic ratio > 15% → "Russian"
 │   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; Langfuse трейсинг:
 │                          trace per request (user_id, session_id, tags=[mode, seniority])
 │                          span() для parse_node/gap_node — input/output/latency_ms
@@ -59,7 +60,12 @@ api/
 │                          trace.score(): match_score, latency_s, skills_missing_count
 │
 ├── ml/
-│   ├── skill_extractor.py  ← BERT NER: найти навыки в тексте
+│   ├── skill_extractor.py  ← BERT NER: вспомогательное извлечение навыков (supplement)
+│   │                          фильтрует ## subword-артефакты (мусор на русском тексте)
+│   ├── skill_matcher.py    ← двухэтапный matching: exact norm → BAAI/bge cosine similarity
+│   │                          merge_skills(primary, supplement) — LLM первичный, NER дополняет
+│   │                          match_skills(resume, vacancy) → (found, missing, score)
+│   │                          threshold из settings.skill_match_threshold (SKILL_MATCH_THRESHOLD .env)
 │   └── seniority_clf.py    ← DistilBERT + LoRA: junior / middle / senior
 │
 ├── rag/

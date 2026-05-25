@@ -16,10 +16,10 @@ Eval pipeline позволяет объективно измерить: стал
 
 ```
 eval/
-├── run_eval.py       ← запускает прогон, сохраняет результаты, regression comparison
+├── run_eval.py       ← запускает прогон, сохраняет результаты, regression comparison, MLflow
 ├── judge.py          ← LLM-as-a-judge: GPT-4o-mini оценивает наш вывод
-├── metrics.py        ← offline метрики: Rouge-L, skill recall/precision/F1, MAE
-├── dataset.py        ← 6 тестовых пар + референсные ответы
+├── metrics.py        ← offline метрики: advice_similarity, Rouge-L, skill recall/precision/F1, MAE
+├── dataset.py        ← 8 тестовых пар + референсные ответы
 ├── results/
 │   └── eval_YYYY-MM-DD.jsonl  ← история прогонов
 └── EVAL.md           ← этот файл
@@ -40,7 +40,8 @@ eval/
 | `skill_recall` | доля найденных пробелов из ожидаемых (sensitivity) | > 0.8 |
 | `skill_precision` | доля верных предсказаний среди всех предсказанных (без ложных тревог) | > 0.7 |
 | `skill_f1` | гармоническое среднее recall и precision | > 0.7 |
-| `rouge_l` | сходство совета с референсным текстом | информационная |
+| `advice_similarity` | косинусное сходство BAAI/bge эмбеддингов совета и референса | основная метрика качества текста |
+| `rouge_l` | n-gram сходство текстов — вспомогательная | информационная |
 | `latency_ms` | время выполнения pipeline на кейс | < 5000ms |
 
 ### 2. LLM-as-a-judge (`judge.py`)
@@ -69,16 +70,18 @@ Skill precision : 0.540  (⚠ -0.230 vs baseline)
 
 ## Тестовый датасет (`dataset.py`)
 
-6 кейсов, покрывающих ключевые сценарии:
+8 кейсов, покрывающих ключевые сценарии:
 
 | # | Описание | Expected match | Difficulty |
 |---|---|---|---|
 | 1 | Python backend → ML Engineer | 0.10–0.40 | partial match |
-| 2 | Senior Frontend → Senior Frontend | 0.60–0.95 | strong match |
-| 3 | Junior → Senior Full-Stack | 0.05–0.30 | seniority gap |
-| 4 | DevOps/SRE → DevOps | 0.65–0.95 | strong match |
+| 2 | Senior Frontend → Senior Frontend | 0.60–1.00 | strong match |
+| 3 | Junior → Senior Full-Stack | 0.20–0.60 | seniority gap |
+| 4 | DevOps/SRE → DevOps | 0.65–0.95 | strong match, semantic (GitLab CI ≈ GitLab) |
 | 5 | Data Analyst → Data Scientist | 0.10–0.45 | missing ML libs |
 | 6 | Full-stack Python/React → Python Backend | 0.60–0.90 | good match |
+| 7 | UX Designer → ML Engineer | 0.00–0.10 | completely irrelevant |
+| 8 | Russian ML Engineer → LLM Engineer (RU) | 0.55–0.90 | Russian language resume |
 
 ---
 
@@ -98,29 +101,31 @@ python -m eval.run_eval --judge
 
 ```
 =================================================================
-EVAL SUMMARY  (6 cases, 2026-05-21)
+EVAL SUMMARY  (8 cases, 2026-05-22)
 =================================================================
-  Match score in range : 3/6  (50%)
-  Match score MAE      : 0.119
-  Seniority accuracy   : 4/6  (67%)
+  Match score in range : 7/8  (88%)
+  Match score MAE      : 0.025
+  Seniority accuracy   : 6/8  (75%)
 
-  Skill recall         : 0.611
-  Skill precision      : 0.056    ← проблема: ложные тревоги
-  Skill F1             : 0.074
-  Rouge-L (advice)     : 0.029
-  Avg latency          : 13503 ms
+  Skill recall         : 0.800
+  Skill precision      : 0.619
+  Skill F1             : 0.670
+  Advice similarity    : 0.812
+  Rouge-L (advice)     : 0.139
+  Avg latency          : ~8000 ms (Ollama)
 =================================================================
 ```
 
 ---
 
-## Текущие проблемы (найдены eval pipeline)
+## Решённые проблемы
 
-| Проблема | Метрика | Причина |
-|---|---|---|
-| Ложные тревоги навыков | precision=0.056 | NER/LLM называет навыки "отсутствующими" даже при strong match |
-| Низкий score у strong match | MAE=0.119 | gap_node недооценивает совпадение |
-| Медленный ответ | latency=13.5s | Ollama локально; с OpenAI ~2–3s |
+| Проблема | Было | Стало | Решение |
+|---|---|---|---|
+| Ложные тревоги навыков | precision=0.056 | precision=0.619 | LLM-primary + NER-supplement; фильтр ## subword-токенов |
+| Точность сопоставления | MAE=0.119 | MAE=0.025 | semantic matching через BAAI/bge (GitLab CI ≈ GitLab) |
+| Бесполезная метрика текста | rouge_l=0.031 | advice_similarity=0.812 | косинусное сходство эмбеддингов вместо n-gram overlap |
+| Язык ответа | иногда English на RU резюме | всегда правильный | detect_language() → {language} в промпт |
 
 ---
 
@@ -161,8 +166,8 @@ LANGFUSE_SECRET_KEY=sk-lf-...
 
 | Файл | Статус |
 |---|---|
-| `eval/dataset.py` | ✅ 6 тестовых пар |
-| `eval/metrics.py` | ✅ Rouge-L, skill recall/precision/F1, MAE, latency |
+| `eval/dataset.py` | ✅ 8 тестовых пар (включая Russian resume, irrelevant case) |
+| `eval/metrics.py` | ✅ advice_similarity, Rouge-L, skill recall/precision/F1, MAE, latency |
 | `eval/judge.py` | ✅ GPT-4o-mini, 4 критерия (relevance/actionability/accuracy/faithfulness) |
-| `eval/run_eval.py` | ✅ CLI, latency tracking, regression comparison, JSONL |
-| `eval/results/` | ✅ Первый прогон: eval_2026-05-21.jsonl |
+| `eval/run_eval.py` | ✅ CLI, latency tracking, regression comparison, MLflow logging, JSONL |
+| `eval/results/` | ✅ eval_2026-05-21.jsonl, eval_2026-05-22.jsonl |

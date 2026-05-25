@@ -90,8 +90,9 @@ LoRA добавляет маленькие матрицы (rank=16) поверх
 
 | Файл | Статус |
 |---|---|
-| `api/ml/skill_extractor.py` | ✅ dslim/bert-base-NER, lazy @cache |
+| `api/ml/skill_extractor.py` | ✅ dslim/bert-base-NER, lazy @cache, ## subword filter |
+| `api/ml/skill_matcher.py` | ✅ exact norm + BAAI/bge cosine, configurable threshold |
 | `api/ml/seniority_clf.py` | ✅ zero-shot xlm-roberta-large-xnli, multilingual |
-| `ml/train_ner.py` | 📅 Неделя 4 |
-| `ml/train_seniority.py` | 📅 Неделя 4 |
-| `ml/data/` | 📅 Неделя 4 |
+| `ml/train_ner.py` | 📅 следующий блок |
+| `ml/train_seniority.py` | 📅 следующий блок |
+| `ml/data/` | 📅 следующий блок |
