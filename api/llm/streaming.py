@@ -139,29 +139,33 @@ async def event_stream(
     if trace:
         try:
             seniority = final_state.get("seniority", "unknown")
+            seniority_confidence = final_state.get("seniority_confidence", 0.0)
             match_score = final_state.get("match_score")
+            vacancy_hint = final_state.get("parsed", {}).get("vacancy_seniority_hint", "not specified")
             total_latency = round((time.perf_counter() - t0) * 1000)
 
             trace.update(
                 output={
                     "match_score": match_score,
                     "seniority": seniority,
+                    "seniority_confidence": round(seniority_confidence, 3),
+                    "vacancy_seniority_hint": vacancy_hint,
                     "skills_missing": final_state.get("skills_missing", []),
                 },
                 metadata={
                     "model": _get_model_name(),
                     "latency_ms": total_latency,
                     "mode": mode,
+                    "vacancy_seniority_hint": vacancy_hint,
                 },
                 tags=[mode, seniority],
             )
 
-            # Scores tab: numeric quality signal per trace
             if match_score is not None:
                 trace.score(name="match_score", value=float(match_score))
+            trace.score(name="seniority_confidence", value=round(float(seniority_confidence), 3))
             trace.score(name="latency_s", value=round(total_latency / 1000, 2))
-            skills_missing_count = len(final_state.get("skills_missing", []))
-            trace.score(name="skills_missing_count", value=float(skills_missing_count))
+            trace.score(name="skills_missing_count", value=float(len(final_state.get("skills_missing", []))))
 
             lf.flush()
         except Exception as exc:
