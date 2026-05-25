@@ -30,8 +30,6 @@ async def _auto_index_vacancy(text: str, title: str, skills: list[str]) -> None:
 async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
     parsed = state.get("parsed", {})
 
-    # LLM-parsed skills as primary (normalized, language-agnostic);
-    # NER supplements with any skills LLM may have missed
     resume_skills = merge_skills(
         parsed.get("resume_skills", []),
         _skill_extractor.extract(state["resume"]),

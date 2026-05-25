@@ -13,11 +13,10 @@ _SKILL_KWS = frozenset([
     "навык", "skill", "стек", "stack", "технолог",
     "инструмент", "tools", "компетенц", "владею",
 ])
-_SKILL_WINDOW = 40  # ~40 lines covers a typical skills section without grabbing unrelated content
+_SKILL_WINDOW = 40
 
 
 def smart_truncate_resume(text: str, limit: int) -> str:
-    # skills block moved to front so it survives truncation when it appears late in the resume
     if len(text) <= limit:
         return text
 

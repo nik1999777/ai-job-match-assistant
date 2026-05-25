@@ -17,11 +17,7 @@ def _get_embed_model():
 
 
 def advice_similarity(generated: str, reference: str) -> float:
-    """
-    Semantic similarity between generated and reference advice via cosine similarity.
-    More meaningful than rouge_l for long-form text where wording differs but meaning aligns.
-    Range: 0 (unrelated) to 1 (identical meaning).
-    """
+    """Cosine similarity of BAAI/bge embeddings. More meaningful than rouge_l for long-form advice."""
     if not generated or not reference:
         return 0.0
     model = _get_embed_model()
@@ -58,7 +54,6 @@ def skill_precision(predicted_missing: list[str], expected_missing: list[str]) -
 
 
 def skill_f1(recall: float, precision: float) -> float:
-    """Harmonic mean of skill recall and precision."""
     if recall + precision == 0:
         return 0.0
     return round(2 * recall * precision / (recall + precision), 3)

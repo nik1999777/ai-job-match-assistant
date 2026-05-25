@@ -1,8 +1,3 @@
-"""
-Skill matching with two-stage strategy:
-  1. Exact normalized match  — fast, no model inference
-  2. Semantic match via cosine similarity — catches synonyms and aliases
-"""
 from __future__ import annotations
 
 import logging
@@ -37,7 +32,7 @@ def _embed(texts: list[str]) -> np.ndarray:
 
 
 def merge_skills(primary: list[str], supplement: list[str]) -> list[str]:
-    """LLM-parsed skills as base; NER-extracted as supplement. Dedup by normalized form."""
+    """LLM skills as primary, NER as supplement. Dedup by normalized form."""
     seen: set[str] = {_normalize(s) for s in primary}
     result = list(primary)
     for skill in supplement:
@@ -53,13 +48,7 @@ def match_skills(
     vacancy_skills: list[str],
     threshold: float | None = None,
 ) -> tuple[list[str], list[str], float]:
-    """
-    Return (found, missing, match_score).
-
-    Stage 1 — exact normalized match (zero cost).
-    Stage 2 — cosine similarity via BAAI/bge-small embeddings for unmatched skills.
-              Catches: 'GitLab CI' ≈ 'GitLab', 'LoRA' ≈ 'fine-tuning', 'Postgres' ≈ 'PostgreSQL'.
-    """
+    """Return (found, missing, match_score) using exact then semantic matching."""
     if threshold is None:
         threshold = _threshold()
 
@@ -68,7 +57,6 @@ def match_skills(
     if not resume_skills:
         return [], list(vacancy_skills), 0.0
 
-    # Stage 1: exact normalized match
     resume_by_norm = {_normalize(s): s for s in resume_skills}
     vacancy_by_norm = {_normalize(s): s for s in vacancy_skills}
 
@@ -78,13 +66,11 @@ def match_skills(
     unmatched_vac = [vacancy_by_norm[k] for k in set(vacancy_by_norm) - exact_hits]
     unmatched_res = [resume_by_norm[k] for k in set(resume_by_norm) - exact_hits]
 
-    # Stage 2: semantic match for remaining skills
     if unmatched_vac and unmatched_res:
         try:
             res_embs = _embed(unmatched_res)   # (R, D)
             vac_embs = _embed(unmatched_vac)   # (V, D)
 
-            # Full cosine similarity matrix (V, R) in one vectorized operation
             sim = vac_embs @ res_embs.T
             sim /= (
                 np.linalg.norm(vac_embs, axis=1, keepdims=True)
