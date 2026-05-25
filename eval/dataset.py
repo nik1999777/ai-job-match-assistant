@@ -218,4 +218,106 @@ TEST_CASES: list[EvalCase] = [
             "изучи LangGraph через официальную документацию — займёт 1-2 недели."
         ),
     ),
+    EvalCase(
+        id=9,
+        description="Middle Python backend → Senior Backend (1-level seniority gap, good skill match)",
+        resume=(
+            "3 года коммерческого Python опыта.\n"
+            "FastAPI, PostgreSQL, Redis, Docker, asyncio.\n"
+            "Разрабатывал REST API для B2B SaaS платформы в команде 4 человека.\n"
+            "Участвовал в код-ревью, писал технические спецификации."
+        ),
+        vacancy=(
+            "Senior Python Backend Engineer.\n"
+            "Требования: Python, FastAPI, PostgreSQL, Redis. Опыт от 5 лет.\n"
+            "Проектирование высоконагруженных систем. Менторинг junior разработчиков.\n"
+            "Принятие технических решений уровня команды."
+        ),
+        # Good skill overlap but 1-level seniority gap (middle→senior) → 10% penalty applied
+        expected_match_range=(0.40, 0.85),
+        expected_missing_skills=[],
+        expected_seniority="middle",
+        reference_advice=(
+            "Хорошее техническое совпадение по стеку, но недостаточно опыта для senior роли.\n"
+            "Основной пробел — системное проектирование и опыт менторинга, а не технические навыки.\n"
+            "Рекомендации: подай заявку акцентируя участие в архитектурных решениях; "
+            "рассмотри как stepping stone — некоторые компании нанимают strong middle на senior titles."
+        ),
+    ),
+    EvalCase(
+        id=10,
+        description="Junior ML student → ML Engineer middle (missing production stack)",
+        resume=(
+            "1 год самостоятельного изучения ML.\n"
+            "Python, pandas, numpy, базовый scikit-learn.\n"
+            "Завершил курс Coursera по Machine Learning.\n"
+            "Сделал 2 Kaggle проекта: предсказание оттока клиентов, классификация изображений."
+        ),
+        vacancy=(
+            "ML Engineer.\n"
+            "Требования: Python, PyTorch, scikit-learn, MLflow, Docker.\n"
+            "Опыт деплоя ML моделей в production. LangChain/LLM приветствуется.\n"
+            "Опыт от 2 лет в коммерческой разработке."
+        ),
+        expected_match_range=(0.05, 0.30),
+        expected_missing_skills=["pytorch", "mlflow", "docker"],
+        expected_seniority="junior",
+        reference_advice=(
+            "Хорошая теоретическая база, но нет production опыта — это критично для вакансии.\n"
+            "Пробелы: PyTorch (переход с sklearn), MLflow для трекинга экспериментов, Docker для деплоя.\n"
+            "Рекомендации: построй end-to-end ML проект с FastAPI + Docker + MLflow на GitHub, "
+            "это покажет готовность к production задачам."
+        ),
+    ),
+    EvalCase(
+        id=11,
+        description="Russian Senior Frontend → Russian Senior Frontend (full RU case, strong match)",
+        resume=(
+            "7 лет frontend разработки.\n"
+            "React, TypeScript, Next.js, Vue.js, Redux Toolkit.\n"
+            "GraphQL, REST API. Webpack, Vite.\n"
+            "Архитектировал frontend для финтех продукта (50K DAU).\n"
+            "Менторил 4 junior разработчика, проводил технические интервью."
+        ),
+        vacancy=(
+            "Senior Frontend Engineer (React).\n"
+            "Требования: React, TypeScript, Next.js, GraphQL.\n"
+            "Опыт с high-load продуктами. Менторинг команды.\n"
+            "Опыт от 5 лет. Удалённая работа."
+        ),
+        expected_match_range=(0.65, 1.0),
+        expected_missing_skills=[],
+        expected_seniority="senior",
+        reference_advice=(
+            "Отличное совпадение — весь стек присутствует, опыт превышает требования.\n"
+            "7 лет, архитектурный опыт и менторинг прямо покрывают ожидания от senior роли.\n"
+            "Рекомендации: акцентируй кейс с финтех продуктом (high-load, метрики DAU), "
+            "это сильный аргумент для продуктовой компании."
+        ),
+    ),
+    EvalCase(
+        id=12,
+        description="Python Backend developer → Frontend React role (career change, poor match)",
+        resume=(
+            "3.5 года backend разработки.\n"
+            "Python, Django, PostgreSQL, REST API, Celery.\n"
+            "Docker, Git, базовый Linux.\n"
+            "Работал над монолитным Django приложением для логистики."
+        ),
+        vacancy=(
+            "Frontend Engineer.\n"
+            "Требования: React, TypeScript, CSS, HTML, Webpack.\n"
+            "Опыт с тестированием (Jest, React Testing Library).\n"
+            "Знание UI/UX принципов. Опыт от 2 лет."
+        ),
+        expected_match_range=(0.00, 0.20),
+        expected_missing_skills=["react", "typescript", "css"],
+        expected_seniority="middle",
+        reference_advice=(
+            "Стек кандидата (Python backend) практически не пересекается с требованиями (React frontend).\n"
+            "Python и Git — единственные пересечения, но этого недостаточно.\n"
+            "Рекомендации: если интересен frontend — начни с HTML/CSS/JavaScript, "
+            "потом React. Рассмотри fullstack вакансии как переходный вариант."
+        ),
+    ),
 ]

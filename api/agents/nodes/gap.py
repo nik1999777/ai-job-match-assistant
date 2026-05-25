@@ -17,6 +17,18 @@ logger = logging.getLogger(__name__)
 _skill_extractor = SkillExtractor()
 _seniority_clf = SeniorityClassifier()
 
+_SENIORITY_LEVELS = {"junior": 0, "middle": 1, "senior": 2}
+
+
+def _seniority_penalty(candidate: str, vacancy_hint: str) -> float:
+    """10% penalty per seniority level underqualification, capped at 20%."""
+    c = _SENIORITY_LEVELS.get(candidate, 1)
+    v = _SENIORITY_LEVELS.get(vacancy_hint, 1)  # "not specified" → 1, symmetric → no penalty
+    gap = v - c
+    if gap <= 0:
+        return 0.0
+    return min(gap * 0.10, 0.20)
+
 
 async def _auto_index_vacancy(text: str, title: str, skills: list[str]) -> None:
     try:
@@ -39,9 +51,13 @@ async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
         _skill_extractor.extract(state["vacancy"]),
     )
 
-    found, missing, match_score = match_skills(resume_skills, vacancy_skills)
+    found, missing, raw_score = match_skills(resume_skills, vacancy_skills)
 
     seniority, confidence = _seniority_clf.classify(state["resume"])
+    vacancy_hint = parsed.get("vacancy_seniority_hint", "not specified")
+    penalty = _seniority_penalty(seniority, vacancy_hint)
+    match_score = round(raw_score * (1 - penalty), 3)
+
     similar = await retrieve_similar_vacancies(state["vacancy"], top_k=3)
 
     title = parsed.get("vacancy_summary", "")[:120] or state["vacancy"].splitlines()[0][:120]

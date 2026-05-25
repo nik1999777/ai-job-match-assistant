@@ -1,0 +1,63 @@
+{"tokens": ["Python", ",", "FastAPI", ",", "PostgreSQL"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Опыт", "работы", "с", "PyTorch", "и", "TensorFlow"], "labels": ["O", "O", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["React", "Native", "и", "TypeScript"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["3", "года", "опыта", "Python", ",", "Django", ",", "PostgreSQL"], "labels": ["O", "O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["разрабатывал", "на", "Django", "и", "Flask"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Kubernetes", ",", "Docker", ",", "Terraform", ",", "AWS"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["знание", "React", ",", "TypeScript", ",", "Next.js"], "labels": ["O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Machine", "Learning", "и", "Deep", "Learning"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["GitLab", "CI", "/", "CD", ",", "Jenkins"], "labels": ["B-SKILL", "I-SKILL", "O", "O", "O", "B-SKILL"]}
+{"tokens": ["работал", "с", "Redis", ",", "RabbitMQ", ",", "Kafka"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Spring", "Boot", ",", "Hibernate", ",", "Maven"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["NumPy", ",", "pandas", ",", "scikit-learn", ",", "matplotlib"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["опыт", "с", "GraphQL", "и", "REST", "API"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["HuggingFace", "Transformers", ",", "BERT", ",", "LoRA"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Apache", "Spark", ",", "Airflow", ",", "dbt"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["владею", "Swift", "и", "Objective-C"], "labels": ["O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Prometheus", ",", "Grafana", ",", "Jaeger"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Node.js", ",", "Express", ",", "MongoDB", ",", "Mongoose"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["LangChain", ",", "LangGraph", ",", "OpenAI", "API"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["использовал", "Ansible", ",", "Helm", ",", "ArgoCD"], "labels": ["O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Vue.js", ",", "Nuxt.js", ",", "Pinia"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["знание", "SQL", ",", "PostgreSQL", ",", "MySQL"], "labels": ["O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Kotlin", ",", "Jetpack", "Compose", ",", "Coroutines"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Ruby", "on", "Rails", ",", "Sidekiq", ",", "RSpec"], "labels": ["B-SKILL", "I-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["опыт", "с", "Qdrant", ",", "Pinecone", ",", "Weaviate"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Go", ",", "gRPC", ",", "Protocol", "Buffers"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["MLflow", ",", "Weights", "&", "Biases", ",", "DVC"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["React", ",", "Redux", "Toolkit", ",", "React", "Query"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["знаю", "Linux", ",", "bash", ",", "Python"], "labels": ["O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["C++", ",", "STL", ",", "OpenCV", ",", "CMake"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["работал", "с", "Azure", "DevOps", ",", "GitHub", "Actions"], "labels": ["O", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["Scala", ",", "Akka", ",", "Apache", "Kafka"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["Flutter", ",", "Dart", ",", "Firebase"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["scikit-learn", ",", "XGBoost", ",", "LightGBM"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["опыт", "деплоя", "на", "AWS", ",", "GCP", ",", "Azure"], "labels": ["O", "O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["TypeScript", ",", "Webpack", ",", "Vite", ",", "Jest"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Selenium", ",", "Playwright", ",", "Cypress"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["PostgreSQL", ",", "Redis", ",", "Elasticsearch"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["fine-tuning", "LLM", "с", "LoRA", "и", "PEFT"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["умею", "работать", "с", "Docker", "Compose", "и", "Kubernetes"], "labels": ["O", "O", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Java", ",", "Spring", "MVC", ",", "JUnit", ",", "Mockito"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Требования", ":", "Python", ",", "FastAPI", ",", "опыт", "с", "LLM"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "O", "O", "B-SKILL"]}
+{"tokens": ["стек", ":", "React", ",", "TypeScript", ",", "GraphQL", ",", "PostgreSQL"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["знание", "Kubernetes", "обязательно", ",", "Helm", "приветствуется"], "labels": ["O", "B-SKILL", "O", "O", "B-SKILL", "O"]}
+{"tokens": ["опыт", "с", "PyTorch", "или", "TensorFlow", "от", "2", "лет"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "O", "O"]}
+{"tokens": ["3", "года", "React", ",", "1", "год", "Vue.js"], "labels": ["O", "O", "B-SKILL", "O", "O", "O", "B-SKILL"]}
+{"tokens": ["C#", ",", ".NET", "Core", ",", "Entity", "Framework", ",", "Azure"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Snowflake", ",", "dbt", ",", "Apache", "Airflow"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL"]}
+{"tokens": ["Swift", ",", "SwiftUI", ",", "Combine", ",", "CoreData"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["PHP", ",", "Laravel", ",", "MySQL", ",", "Composer"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Rust", ",", "WebAssembly", ",", "Tokio"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["OpenAI", "API", ",", "LangChain", ",", "Qdrant", ",", "FastAPI"], "labels": ["B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Tableau", ",", "Power", "BI", ",", "SQL", ",", "Python"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["разработка", "на", "Kotlin", ",", "Room", ",", "Hilt", ",", "Retrofit"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["использую", "Terraform", "для", "инфраструктуры", "и", "Ansible", "для", "конфигурации"], "labels": ["O", "B-SKILL", "O", "O", "O", "B-SKILL", "O", "O"]}
+{"tokens": ["опыт", "с", "Celery", ",", "Redis", ",", "RabbitMQ"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["стажировался", "3", "месяца", ",", "изучал", "Python", "и", "Django"], "labels": ["O", "O", "O", "O", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["работаю", "с", "Figma", ",", "Adobe", "XD", ",", "Sketch"], "labels": ["O", "O", "B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Gradle", ",", "Maven", ",", "Jenkins", ",", "SonarQube"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["FastAPI", ",", "SQLAlchemy", ",", "Alembic", ",", "asyncio"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Natural", "Language", "Processing", ",", "BERT", ",", "GPT"], "labels": ["B-SKILL", "I-SKILL", "I-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}
+{"tokens": ["CircleCI", ",", "GitHub", "Actions", ",", "Fastlane"], "labels": ["B-SKILL", "O", "B-SKILL", "I-SKILL", "O", "B-SKILL"]}
+{"tokens": ["Angular", ",", "RxJS", ",", "NgRx", ",", "TypeScript"], "labels": ["B-SKILL", "O", "B-SKILL", "O", "B-SKILL", "O", "B-SKILL"]}

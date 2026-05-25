@@ -1,0 +1,90 @@
+{"text": "1 год коммерческого опыта. Python, Flask, базовый JavaScript. Разработал 3 учебных проекта. Только начинаю карьеру в IT.", "label": "junior"}
+{"text": "Недавно окончил курсы по веб-разработке. HTML, CSS, JavaScript. Сделал 2 лендинга для фриланса. Ищу первую работу.", "label": "junior"}
+{"text": "Junior Python Developer. 8 месяцев опыта. Django, SQLite, базовый Git. Нахожусь в процессе изучения FastAPI и PostgreSQL.", "label": "junior"}
+{"text": "Recent graduate, 6 months experience. Python, basic data analysis with pandas. Built 2 ML models for university projects.", "label": "junior"}
+{"text": "Стажировка 6 месяцев в веб-студии. HTML, CSS, Bootstrap, jQuery. Верстал страницы по макетам Figma.", "label": "junior"}
+{"text": "1.5 года опыта React разработки. Делал небольшие фичи под руководством senior. TypeScript изучаю самостоятельно.", "label": "junior"}
+{"text": "Intern software engineer. Java, Spring Boot basics. Completed one feature in production with code review from senior.", "label": "junior"}
+{"text": "Полгода работы в стартапе. Node.js, Express, MongoDB. Ещё много не знаю, но активно развиваюсь.", "label": "junior"}
+{"text": "Год опыта в Data Science. Python, pandas, matplotlib, базовый sklearn. Участвовал в 2 Kaggle соревнованиях.", "label": "junior"}
+{"text": "Junior DevOps. 10 месяцев. Docker, Linux, bash скрипты. Помогаю настраивать CI/CD пайплайны под руководством middle.", "label": "junior"}
+{"text": "1 год iOS разработки (Swift). Выпустил 1 приложение в App Store в рамках учёбы. UIKit, основы CoreData.", "label": "junior"}
+{"text": "Entry-level backend developer. Go basics, REST API, PostgreSQL. Learning microservices patterns.", "label": "junior"}
+{"text": "Год коммерческого опыта frontend. Vue.js, JavaScript (ES6), базовый CSS. Работал в небольшой продуктовой компании.", "label": "junior"}
+{"text": "Junior QA Engineer. 8 месяцев. Ручное тестирование, базовый Postman, начинаю изучать Selenium.", "label": "junior"}
+{"text": "2 года опыта, всё ещё junior уровень. Java, Spring, MySQL. Проекты небольшие, mostly CRUD приложения.", "label": "junior"}
+{"text": "Только начал работать в IT после bootcamp. JavaScript, React, Node.js, MongoDB. Нет опыта работы в команде.", "label": "junior"}
+{"text": "1 год Python. Scrapy, requests, BeautifulSoup — парсинг данных. Хочу перейти в backend разработку.", "label": "junior"}
+{"text": "Учусь в университете 3 курс. C++, Python, базовый SQL. Нет коммерческого опыта, есть учебные проекты.", "label": "junior"}
+{"text": "Junior ML Engineer. 1 год. Python, PyTorch (базовый), Jupyter notebooks. Участие в pet-проектах по CV.", "label": "junior"}
+{"text": "6 месяцев Kotlin Android разработки. Retrofit, Coroutines, MVVM. Работаю над первым коммерческим приложением.", "label": "junior"}
+{"text": "1.5 years experience as junior backend. Ruby on Rails, PostgreSQL. Fixed bugs, added small features.", "label": "junior"}
+{"text": "Год опыта в PHP/Laravel. Делал сайты по шаблонам. Хочу развиваться в более серьёзные технологии.", "label": "junior"}
+{"text": "Junior Data Analyst. SQL, Excel, базовый Python (pandas). Строил простые отчёты в Tableau.", "label": "junior"}
+{"text": "10 месяцев работы fullstack. React + Node.js. Небольшой стартап, работал один над небольшими фичами.", "label": "junior"}
+{"text": "Recent grad, 4 months at first job. C#, .NET, SQL Server. Still learning enterprise patterns with help from team lead.", "label": "junior"}
+{"text": "Junior embedded developer. С, базовый C++. Работаю с микроконтроллерами STM32. 1 год опыта.", "label": "junior"}
+{"text": "1 год опыта в автоматизации тестирования. Python, pytest, Selenium. Пишу тест-кейсы по готовым шаблонам.", "label": "junior"}
+{"text": "Fullstack junior, 2 года. PHP + MySQL + JavaScript. Делаю корпоративные сайты. Пора двигаться дальше.", "label": "junior"}
+{"text": "Junior Frontend. 1.5 года. Angular, TypeScript, rxjs — часто прошу помощи у тимлида с архитектурными вопросами.", "label": "junior"}
+{"text": "Полтора года опыта Python. Написал несколько скриптов для автоматизации в компании. Без понимания архитектуры.", "label": "junior"}
+{"text": "3 года коммерческого Python опыта. FastAPI, PostgreSQL, Redis, Docker. Разрабатывал REST API для fintech SaaS в команде.", "label": "middle"}
+{"text": "4 года frontend разработки. React, TypeScript, Redux. Самостоятельно реализовывал крупные фичи. Провожу код-ревью.", "label": "middle"}
+{"text": "3.5 года Data Engineer. Apache Spark, Airflow, Python, SQL. Строил ETL пайплайны для аналитики. Команда 5 человек.", "label": "middle"}
+{"text": "Middle DevOps Engineer, 3 года. Kubernetes, Terraform, AWS, GitLab CI. Автоматизировал деплой 20+ микросервисов.", "label": "middle"}
+{"text": "4 years Python developer. Django, DRF, PostgreSQL, Celery, RabbitMQ. Independently designed and implemented REST APIs.", "label": "middle"}
+{"text": "3 года iOS разработки (Swift). Работаю над production приложением с 100K+ пользователей. UIKit, SwiftUI, CoreData.", "label": "middle"}
+{"text": "Middle ML Engineer. 3 года. PyTorch, scikit-learn, MLflow. Деплоил модели через FastAPI, участвовал в A/B тестах.", "label": "middle"}
+{"text": "3.5 года Go backend. gRPC, PostgreSQL, Redis, Kafka. Разрабатывал микросервисы в team из 6 человек.", "label": "middle"}
+{"text": "4 года Java разработки. Spring Boot, Hibernate, Kafka, Docker. Самостоятельно отвечаю за несколько сервисов.", "label": "middle"}
+{"text": "Middle QA Automation, 3 года. Selenium, Python pytest, Jenkins. Построил test framework с нуля для продукта.", "label": "middle"}
+{"text": "3 года React/TypeScript. Делаю компонентные библиотеки, провожу перфоманс оптимизацию. Участвую в архитектурных обсуждениях.", "label": "middle"}
+{"text": "3.5 years as a backend developer. Node.js, Express, MongoDB, Redis. Lead development of core API independently.", "label": "middle"}
+{"text": "Middle Data Scientist, 3 года. Python, PyTorch, TensorFlow, MLflow. Обучил и задеплоил 5+ моделей в prod.", "label": "middle"}
+{"text": "4 года Android разработки (Kotlin). Coroutines, Jetpack Compose, Hilt. Работаю над приложением с 500K активных пользователей.", "label": "middle"}
+{"text": "3 года fullstack (Python/React). Самостоятельно реализую полные фичи от backend до frontend. Пишу документацию.", "label": "middle"}
+{"text": "Middle SRE, 3 года. Prometheus, Grafana, Kubernetes, Ansible. Снизил downtime на 40% через автоматизацию.", "label": "middle"}
+{"text": "4 years C# .NET. Microservices, Entity Framework, Azure. Designed database schemas and API contracts independently.", "label": "middle"}
+{"text": "3 года в NLP и ML. HuggingFace Transformers, PyTorch, Python. Fine-tuning BERT для задач классификации текстов.", "label": "middle"}
+{"text": "Middle frontend, 3.5 года. Vue.js, Nuxt, TypeScript. Разработал и поддерживаю design system компании.", "label": "middle"}
+{"text": "3 года Scala backend. Apache Spark, Akka, PostgreSQL. Участвовал в проектировании data pipeline архитектуры.", "label": "middle"}
+{"text": "3 года Python DevOps/Platform Engineering. Terraform, AWS, Docker, Python. Автоматизирую инфраструктурные задачи.", "label": "middle"}
+{"text": "Middle iOS developer, 4 года. Swift, SwiftUI, Combine, CoreBluetooth. Разрабатывал IoT интеграции для B2B продукта.", "label": "middle"}
+{"text": "3 года embedded C++. RTOS, CAN bus, STM32. Самостоятельно веду модули firmware для промышленного оборудования.", "label": "middle"}
+{"text": "3.5 года Ruby/Rails. PostgreSQL, Sidekiq, Redis, RSpec. Провожу код-ревью, участвую в планировании спринтов.", "label": "middle"}
+{"text": "Middle Data Analyst, 3 года. SQL, Python (pandas, matplotlib), Tableau, PowerBI. Строю аналитические дашборды.", "label": "middle"}
+{"text": "4 года PHP/Laravel. REST API, MySQL, Redis, PHPUnit. Самостоятельно веду несколько проектов от архитектуры до деплоя.", "label": "middle"}
+{"text": "3 года React Native mobile. Redux, GraphQL, TypeScript. Выпустил 3 production приложения iOS+Android.", "label": "middle"}
+{"text": "Middle backend Kotlin, 3 года. Spring Boot, PostgreSQL, Kafka, Docker. Участвую в code review и планировании.", "label": "middle"}
+{"text": "3 года frontend разработки. React, Redux Toolkit, Jest, Cypress. Покрываю код тестами, активно участвую в ревью.", "label": "middle"}
+{"text": "4 года Python в платёжных системах. FastAPI, asyncio, PostgreSQL, Kafka. Хорошо знаю специфику fintech требований.", "label": "middle"}
+{"text": "8 лет в backend разработке. Архитектировал микросервисную систему с 50+ сервисами. Менторил команду 6 разработчиков. Python, Go, Kafka, Kubernetes.", "label": "senior"}
+{"text": "Senior Frontend Engineer, 7+ лет. Спроектировал micro-frontend платформу для e-commerce с 2M DAU. TypeScript, React, ментор для 5 человек.", "label": "senior"}
+{"text": "Tech Lead с 7-летним опытом ML. Построил рекомендательную систему (1M+ пользователей). PyTorch, Kubernetes, MLflow. Провожу tech интервью.", "label": "senior"}
+{"text": "9 years backend. Designed distributed systems at scale. Led migrations of monoliths to microservices. Java, Kafka, AWS, team of 8.", "label": "senior"}
+{"text": "Senior DevOps/Platform, 6 лет. Построил Kubernetes-based platform для 200+ microservices. Снизил infrastructure cost на 35%. Веду tech chapter.", "label": "senior"}
+{"text": "Staff engineer, 10+ лет. Определяю технические стандарты для 3 команд. Архитектурный reviewer для ключевых изменений. Go, gRPC, GCP.", "label": "senior"}
+{"text": "Ведущий разработчик, 7 лет. Ответственен за архитектуру backend системы. Провожу найм, веду квартальное планирование. Python, PostgreSQL, Redis.", "label": "senior"}
+{"text": "Senior ML Engineer, 6 лет. Руководил построением LLM inference платформы. vLLM, PyTorch, Kubernetes, HuggingFace. Патент на алгоритм ранжирования.", "label": "senior"}
+{"text": "6 years iOS, currently senior. Architected SDK used by 20 partner apps. Led iOS team of 4. Swift, SwiftUI, Metal.", "label": "senior"}
+{"text": "Senior Data Engineer, 7 лет. Проектировал data lake архитектуру для корпоративного клиента. Spark, dbt, Snowflake, Airflow.", "label": "senior"}
+{"text": "Tech Lead backend (Node.js), 6 лет. Провёл migration from monolith to microservices. Team of 7. Kafka, Redis, PostgreSQL, TypeScript.", "label": "senior"}
+{"text": "Senior Kotlin Android, 7 лет. Архитектурные решения для приложения 5M+ скачиваний. Менторил команду 4 mobile разработчиков.", "label": "senior"}
+{"text": "Principal Engineer, 12 лет. Кросс-командный технический лидер. Определяю долгосрочную tech roadmap. Python, distributed systems, observability.", "label": "senior"}
+{"text": "Senior SRE, 7 лет. Построил observability platform (Prometheus, Grafana, Jaeger) с нуля. SLO-driven reliability. Веду incident review.", "label": "senior"}
+{"text": "6 лет в Data Science и ML. Principal Data Scientist. Внедрил 15+ ML моделей в production. Руководил командой 5 DS.", "label": "senior"}
+{"text": "Senior Go engineer, 6 лет. Проектировал high-throughput payment processing system (100K TPS). gRPC, Kafka, sharded PostgreSQL.", "label": "senior"}
+{"text": "7 years React/TypeScript. Tech lead frontend, architected design system used across 4 products. Mentored 6 developers.", "label": "senior"}
+{"text": "Ведущий DevOps, 7 лет. Создал GitOps-based deployment pipeline для 100+ сервисов. Kubernetes, Helm, ArgoCD, Terraform.", "label": "senior"}
+{"text": "Senior C++ engineer, 8 лет. Embedded systems expert. Led development of RTOS-based firmware platform. Filed 2 patents.", "label": "senior"}
+{"text": "Senior NLP Engineer, 6 лет. Разработал multilingual NER и intent detection для voice assistant. Python, PyTorch, BERT fine-tuning.", "label": "senior"}
+{"text": "8+ лет Java разработки. Архитект финансовой системы. Провёл 100+ технических интервью. Spring, Kafka, Oracle, PostgreSQL.", "label": "senior"}
+{"text": "Staff Frontend Engineer, 9 лет. Создал cross-platform component library используемую 10 командами. React, Web Components, performance.", "label": "senior"}
+{"text": "Senior Platform Engineer, 6 лет. Разработал internal developer platform на Kubernetes. Снизил time-to-deploy с 2 часов до 10 минут.", "label": "senior"}
+{"text": "6 лет в ML и MLOps. Построил feature store и model serving platform. Kubeflow, MLflow, Python, Go. Team lead 3 человека.", "label": "senior"}
+{"text": "Senior Ruby/Rails Engineer, 7 лет. Архитектировал event-driven commerce platform. Kafka, PostgreSQL, Redis. Веду tech decisions.", "label": "senior"}
+{"text": "7 years Android engineering. Principal Android engineer. Define mobile architecture standards for 3 squads. Kotlin, Jetpack.", "label": "senior"}
+{"text": "Senior Data Architect, 8 лет. Проектирую data mesh архитектуру для enterprise клиентов. dbt, Spark, Snowflake, Databricks.", "label": "senior"}
+{"text": "Технический директор малого стартапа, 6 лет коммерческого опыта. Построил tech stack с нуля. Python, React, PostgreSQL, AWS.", "label": "senior"}
+{"text": "Senior QA Lead, 7 лет. Построил автоматизированный pipeline testing для 3 продуктов. Selenium, k6, TestContainers, CI/CD.", "label": "senior"}
+{"text": "6 лет PHP разработки, senior уровень. Архитектировал SaaS платформу для 50K компаний. Laravel, MySQL, Redis, очереди RabbitMQ.", "label": "senior"}
