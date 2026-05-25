@@ -59,7 +59,8 @@ api/
 │                          trace per request (user_id, session_id, tags=[mode, seniority])
 │                          span() для parse_node/gap_node — input/output/latency_ms
 │                          generation() для advise_node — model name + LLM ответ
-│                          trace.score(): match_score, latency_s, skills_missing_count
+│                          trace.score(): match_score, seniority_confidence, latency_s, skills_missing_count
+│                          output + metadata: vacancy_seniority_hint (для анализа penalty)
 │
 ├── ml/
 │   ├── skill_extractor.py  ← BERT NER: вспомогательное извлечение навыков (supplement)
