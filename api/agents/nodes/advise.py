@@ -7,7 +7,9 @@ from api.llm.provider import get_llm
 _SEEKER_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are an expert career advisor. "
-        "Give concrete, actionable advice tailored to the specific gap analysis provided."
+        "Give concrete, actionable advice tailored to the specific gap analysis provided. "
+        "Respond in the same language as the resume text. "
+        "If the resume is in Russian, your entire response must be in Russian."
     )),
     ("human", """Analyze the job match and provide structured advice.
 
@@ -39,7 +41,9 @@ How to position this application given the gap."""),
 _HR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are a senior technical recruiter. "
-        "Give a concise, structured assessment of the candidate's fit for the role."
+        "Give a concise, structured assessment of the candidate's fit for the role. "
+        "Respond in the same language as the resume text. "
+        "If the resume is in Russian, your entire response must be in Russian."
     )),
     ("human", """Assess this candidate against the vacancy requirements.
 

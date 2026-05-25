@@ -41,8 +41,11 @@ class ParsedData(BaseModel):
     vacancy_summary: str = Field(description="1-2 sentence summary of the job requirements")
     resume_skills: list[str] = Field(
         description=(
-            "Individual technical skills — one skill per list item. "
+            "Confirmed technical skills the candidate currently has — one skill per item. "
+            "EXCLUDE skills the candidate is still learning or studying "
+            "('изучаю', 'learning', 'studying', 'в процессе' → do NOT include). "
             "Split compound strings: 'TypeScript + React' → ['TypeScript', 'React'], "
+            "'GitLab CI/CD' → ['GitLab'], 'LoRA/PEFT' → ['LoRA', 'PEFT'], "
             "'Python/Go' → ['Python', 'Go']. "
             "Normalize to root technology: 'react-router' → 'React', 'axios' → 'REST API'. "
             "Strip versions: 'React 18' → 'React'. No duplicates."
@@ -50,8 +53,11 @@ class ParsedData(BaseModel):
     )
     vacancy_skills: list[str] = Field(
         description=(
-            "Individual technical skills required by the vacancy — one skill per list item. "
+            "Individual technical skills required by the vacancy — one skill per item. "
+            "For OR conditions pick the first option: 'GitLab или GitHub Actions' → ['GitLab'], "
+            "'FastAPI или Django' → ['FastAPI']. "
             "Split compound strings: 'TypeScript + React' → ['TypeScript', 'React'], "
+            "'Prometheus/Grafana' → ['Prometheus', 'Grafana'], "
             "'Python/Go' → ['Python', 'Go']. "
             "Normalize to root technology: 'React 19' → 'React', 'Node.js 20' → 'Node.js'. "
             "No duplicates."

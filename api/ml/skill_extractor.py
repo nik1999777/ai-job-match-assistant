@@ -23,7 +23,12 @@ class SkillExtractor:
             for e in entities:
                 word = e["word"].strip()
                 # MISC = frameworks/tools/tech; ORG catches "Docker", "Google Cloud"
-                if e["entity_group"] in ("MISC", "ORG") and len(word) > 1:
+                # Skip BERT subword artifacts (## prefix) that leak on out-of-vocab languages
+                if (
+                    e["entity_group"] in ("MISC", "ORG")
+                    and len(word) > 1
+                    and not word.startswith("##")
+                ):
                     low = word.lower()
                     if low not in seen:
                         seen.add(low)
