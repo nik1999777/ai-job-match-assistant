@@ -1,3 +1,6 @@
+from functools import cache
+
+import numpy as np
 from rouge_score import rouge_scorer
 
 _scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
@@ -5,6 +8,27 @@ _scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
 
 def rouge_l(generated: str, reference: str) -> float:
     return round(_scorer.score(reference, generated)["rougeL"].fmeasure, 4)
+
+
+@cache
+def _get_embed_model():
+    from fastembed import TextEmbedding
+    return TextEmbedding("BAAI/bge-small-en-v1.5")
+
+
+def advice_similarity(generated: str, reference: str) -> float:
+    """
+    Semantic similarity between generated and reference advice via cosine similarity.
+    More meaningful than rouge_l for long-form text where wording differs but meaning aligns.
+    Range: 0 (unrelated) to 1 (identical meaning).
+    """
+    if not generated or not reference:
+        return 0.0
+    model = _get_embed_model()
+    embs = np.array(list(model.embed([generated, reference])), dtype=np.float32)
+    a, b = embs[0], embs[1]
+    denom = np.linalg.norm(a) * np.linalg.norm(b)
+    return round(float(np.dot(a, b) / denom) if denom > 0 else 0.0, 4)
 
 
 def skill_recall(predicted_missing: list[str], expected_missing: list[str]) -> float:

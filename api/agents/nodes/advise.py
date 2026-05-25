@@ -2,74 +2,75 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
+from api.llm.language import detect_language
 from api.llm.provider import get_llm
 
 _SEEKER_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are an expert career advisor. "
-        "Give concrete, actionable advice tailored to the specific gap analysis provided. "
-        "Respond in the same language as the resume text. "
-        "If the resume is in Russian, your entire response must be in Russian."
+        "Give concrete, actionable advice grounded strictly in the provided data. "
+        "Respond entirely in {language}. All section headings must also be in {language}."
     )),
-    ("human", """Analyze the job match and provide structured advice.
+    ("human", """You have the following job match analysis. Use all data provided.
 
 RESUME SUMMARY: {resume_summary}
 VACANCY SUMMARY: {vacancy_summary}
-MATCH SCORE: {match_score}
-SENIORITY: {seniority} (confidence: {seniority_confidence})
 
+MATCH SCORE: {match_score} | SENIORITY: {seniority} (confidence: {seniority_confidence})
 MATCHING SKILLS: {skills_found}
 MISSING SKILLS: {skills_missing}
 
-SIMILAR VACANCIES ON MARKET:
+SIMILAR ROLES ON MARKET:
 {similar_context}
 
-Respond with four sections:
+Write four sections. Be specific — no generic advice.
+
 ## Overall Assessment
-2-3 sentences on fit and biggest opportunity.
+2-3 sentences on fit. If match score is below 40%, explicitly state this is a stretch role.
+If there is a seniority mismatch (e.g. junior applying for senior), name it clearly.
 
 ## Top Skills to Develop
-List the 3 most impactful missing skills with a concrete learning path for each.
+The 3 most critical missing skills with a concrete learning resource or action for each.
+Skip this section if there are no missing skills.
 
 ## Resume Improvements
-Specific bullet-level edits to better match the vacancy.
+2-3 specific edits to better target this vacancy.
 
 ## Application Strategy
-How to position this application given the gap."""),
+How to position this application given the match score and seniority level."""),
 ])
 
 _HR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are a senior technical recruiter. "
-        "Give a concise, structured assessment of the candidate's fit for the role. "
-        "Respond in the same language as the resume text. "
-        "If the resume is in Russian, your entire response must be in Russian."
+        "Give a structured, evidence-based assessment. No filler phrases. "
+        "Respond entirely in {language}. All section headings must also be in {language}."
     )),
-    ("human", """Assess this candidate against the vacancy requirements.
+    ("human", """Assess this candidate against the vacancy. Use the data provided.
 
 RESUME SUMMARY: {resume_summary}
 VACANCY SUMMARY: {vacancy_summary}
-MATCH SCORE: {match_score}
-SENIORITY: {seniority} (confidence: {seniority_confidence})
 
+MATCH SCORE: {match_score} | SENIORITY: {seniority} (confidence: {seniority_confidence})
 MATCHING SKILLS: {skills_found}
 MISSING SKILLS: {skills_missing}
 
-SIMILAR VACANCIES ON MARKET:
+SIMILAR ROLES ON MARKET:
 {similar_context}
 
-Respond with four sections:
+Write four sections.
+
 ## Candidate Fit
-1-2 sentences on overall fit.
+1-2 sentences. State the match score and whether seniority aligns.
 
 ## Strengths
-Key matching skills and relevant experience.
+Skills and experience that directly match the role requirements.
 
 ## Gaps
-Missing skills and experience gaps that matter for this role.
+Missing skills or experience that matter for this role. Be specific.
 
 ## Hiring Recommendation
-One of: **Hire** / **Borderline** / **No Hire** — with a one-line justification."""),
+One of: **Hire** / **Borderline** / **No Hire** — one sentence justification based on the data."""),
 ])
 
 
@@ -77,6 +78,8 @@ async def advise_node(state: dict[str, Any]) -> dict[str, Any]:
     parsed = state.get("parsed", {})
     similar = state.get("similar_vacancies", [])
     mode = state.get("mode", "seeker")
+
+    language = detect_language(state.get("resume", ""))
 
     similar_context = "\n".join(
         "- {title}: {skills}".format(
@@ -87,10 +90,10 @@ async def advise_node(state: dict[str, Any]) -> dict[str, Any]:
     ) or "No similar vacancies retrieved."
 
     prompt = _HR_PROMPT if mode == "hr" else _SEEKER_PROMPT
-    llm = get_llm()
-    chain = prompt | llm
+    chain = prompt | get_llm()
 
     result = await chain.ainvoke({
+        "language": language,
         "resume_summary": parsed.get("resume_summary", "—"),
         "vacancy_summary": parsed.get("vacancy_summary", "—"),
         "match_score": f"{state.get('match_score', 0):.1%}",

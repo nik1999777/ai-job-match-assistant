@@ -23,6 +23,7 @@ import mlflow
 from eval.dataset import TEST_CASES, EvalCase
 from eval.judge import judge_advice
 from eval.metrics import (
+    advice_similarity,
     match_score_in_range,
     match_score_mae,
     rouge_l,
@@ -72,6 +73,7 @@ async def evaluate_one(case: EvalCase, run_judge: bool) -> dict:
         "seniority_predicted": predicted_seniority,
         "seniority_correct": predicted_seniority == case.expected_seniority,
         "rouge_l": rouge_l(advice, case.reference_advice) if advice else None,
+        "advice_similarity": advice_similarity(advice, case.reference_advice) if advice else None,
         "skills_missing_predicted": predicted_missing,
         "judge_relevance": None,
         "judge_actionability": None,
@@ -130,6 +132,7 @@ def _print_summary(results: list[dict], baseline: list[dict] | None) -> None:
     avg_f1 = _avg(results, "skill_f1")
     avg_mae = _avg(results, "match_score_mae")
     avg_rouge = _avg(results, "rouge_l")
+    avg_sim = _avg(results, "advice_similarity")
     avg_latency = _avg(results, "latency_ms")
 
     b_recall = _avg(baseline, "skill_recall") if baseline else None
@@ -137,6 +140,7 @@ def _print_summary(results: list[dict], baseline: list[dict] | None) -> None:
     b_f1 = _avg(baseline, "skill_f1") if baseline else None
     b_mae = _avg(baseline, "match_score_mae") if baseline else None
     b_rouge = _avg(baseline, "rouge_l") if baseline else None
+    b_sim = _avg(baseline, "advice_similarity") if baseline else None
 
     judge_rows = [r for r in results if r.get("judge_relevance") is not None]
     b_judge = [r for r in (baseline or []) if r.get("judge_relevance") is not None]
@@ -151,6 +155,8 @@ def _print_summary(results: list[dict], baseline: list[dict] | None) -> None:
     print(f"  Skill recall         : {avg_recall}{_delta_str(avg_recall, b_recall)}")
     print(f"  Skill precision      : {avg_precision}{_delta_str(avg_precision, b_precision)}")
     print(f"  Skill F1             : {avg_f1}{_delta_str(avg_f1, b_f1)}")
+    if avg_sim is not None:
+        print(f"  Advice similarity    : {avg_sim}{_delta_str(avg_sim, b_sim)}")
     if avg_rouge is not None:
         print(f"  Rouge-L (advice)     : {avg_rouge}{_delta_str(avg_rouge, b_rouge)}")
     if avg_latency is not None:
@@ -234,6 +240,7 @@ def _log_mlflow(results: list[dict], run_judge: bool) -> None:
                 "skill_precision": _avg(results, "skill_precision") or 0.0,
                 "skill_f1": _avg(results, "skill_f1") or 0.0,
                 "rouge_l": _avg(results, "rouge_l") or 0.0,
+                "advice_similarity": _avg(results, "advice_similarity") or 0.0,
                 "avg_latency_ms": _avg(results, "latency_ms") or 0.0,
             })
             judge_rows = [r for r in results if r.get("judge_relevance") is not None]

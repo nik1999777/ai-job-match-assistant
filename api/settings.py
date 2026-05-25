@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "vacancies"
 
+    # Semantic skill matching — cosine similarity threshold (0–1)
+    # Lower = more permissive matches; higher = stricter
+    skill_match_threshold: float = 0.75
+
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 дней

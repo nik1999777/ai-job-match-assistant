@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 # Strips whitespace and common separators; preserves + and # (C++, C#)
 _NORM_RE = re.compile(r"[\s.\-_/]")
 
-SIMILARITY_THRESHOLD = 0.75
+
+def _threshold() -> float:
+    from api.settings import settings
+    return settings.skill_match_threshold
 
 
 def _normalize(skill: str) -> str:
@@ -48,7 +51,7 @@ def merge_skills(primary: list[str], supplement: list[str]) -> list[str]:
 def match_skills(
     resume_skills: list[str],
     vacancy_skills: list[str],
-    threshold: float = SIMILARITY_THRESHOLD,
+    threshold: float | None = None,
 ) -> tuple[list[str], list[str], float]:
     """
     Return (found, missing, match_score).
@@ -57,6 +60,9 @@ def match_skills(
     Stage 2 — cosine similarity via BAAI/bge-small embeddings for unmatched skills.
               Catches: 'GitLab CI' ≈ 'GitLab', 'LoRA' ≈ 'fine-tuning', 'Postgres' ≈ 'PostgreSQL'.
     """
+    if threshold is None:
+        threshold = _threshold()
+
     if not vacancy_skills:
         return [], [], 0.0
     if not resume_skills:
