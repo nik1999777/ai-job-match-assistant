@@ -46,8 +46,21 @@ mlflow ui --port 5001
 >
 > **LLM провайдеры** (выбрать в `.env`):
 > - `LLM_PROVIDER=ollama` — локально, бесплатно (dev)
-> - `LLM_PROVIDER=groq` + `GROQ_API_KEY=gsk_...` + `GROQ_PROXY=http://user:pass@host:port` — llama-3.3-70b бесплатно, 1000 req/day (лимиты: [console.groq.com/dashboard](https://console.groq.com/dashboard), нужен прокси из РФ)
+> - `LLM_PROVIDER=groq` + `GROQ_API_KEY=gsk_...` + `GROQ_PROXY=http://user:pass@host:port` — бесплатно, нужен прокси из РФ. Лимиты: [console.groq.com/dashboard](https://console.groq.com/dashboard)
 > - `LLM_PROVIDER=openai` + `OPENAI_API_KEY=sk_...` — GPT-4o-mini (prod)
+
+### Groq модели (бесплатный tier)
+
+| GROQ_MODEL | Размер | Лимит/сутки | Качество | Примечание |
+|---|---|---|---|---|
+| `meta-llama/llama-4-scout-17b-16e-instruct` | 17B MoE | ~500K TPD | ★★★★☆ | **рекомендуется** — лучший eval |
+| `llama-3.3-70b-versatile` | 70B | 100K TPD | ★★★★★ | умнее, но маленькая квота |
+| `llama-3.1-8b-instant` | 8B | 500K TPD | ★★★☆☆ | быстрый fallback |
+| `qwen/qwen3-32b` | 32B | ~100K TPD | ★★★★☆ | Alibaba, сильный reasoning |
+
+Каждая модель имеет **отдельную** квоту — если одна исчерпана, переключись на другую. Смена: `GROQ_MODEL=<model-id>` в `.env`. Квоты сбрасываются в полночь UTC.
+
+Полный список + eval результаты → [.env.example](.env.example)
 
 ---
 

@@ -46,14 +46,17 @@ api/
 │   ├── graph.py     ← собирает граф из трёх узлов
 │   └── nodes/
 │       ├── parse.py   ← узел 1: LLM → структурированный JSON из резюме/вакансии
-│       │                smart_truncate_resume() — приоритет секции навыков при обрезке
+│       │                _SKILL_RULES — shared инструкции нормализации скиллов (few-shot в Field descriptions)
+│       │                vacancy_seniority_hint: str + field_validator (не Literal — LangChain валидирует раньше Pydantic)
+│       │                простая обрезка через settings.resume_context_limit (8000 символов)
 │       ├── gap.py     ← узел 2: ML навыки + seniority penalty + RAG + auto-index в Qdrant
 │       │                _seniority_penalty(candidate, vacancy_hint): 10%/уровень, max 20%
 │       │                match_score = skill_score * (1 - penalty); "not specified" → 0%
 │       └── advise.py  ← узел 3: LLM → совет по 4 секциям
 │
 ├── llm/
-│   ├── provider.py    ← фабрика: ChatOpenAI/Claude (prod) или ChatOllama (dev only)
+│   ├── provider.py    ← фабрика: ChatGroq (default, dev/free) | ChatOpenAI (prod) | ChatOllama (local)
+│   │                    Groq: per-client httpx proxy — только Groq трафик через прокси (hh.ru напрямую)
 │   ├── language.py    ← detect_language(text): Cyrillic ratio > 15% → "Russian"
 │   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; Langfuse трейсинг:
 │                          trace per request (user_id, session_id, tags=[mode, seniority])
@@ -63,8 +66,9 @@ api/
 │                          output + metadata: vacancy_seniority_hint (для анализа penalty)
 │
 ├── ml/
-│   ├── skill_extractor.py  ← BERT NER: вспомогательное извлечение навыков (supplement)
+│   ├── skill_extractor.py  ← BERT NER: вспомогательное извлечение навыков (supplement, только resume)
 │   │                          фильтрует ## subword-артефакты (мусор на русском тексте)
+│   │                          tail chunk: если текст > MAX_CHARS → обрабатывает начало И конец
 │   ├── skill_matcher.py    ← двухэтапный matching: exact norm → BAAI/bge cosine similarity
 │   │                          merge_skills(primary, supplement) — LLM первичный, NER дополняет
 │   │                          match_skills(resume, vacancy) → (found, missing, score)

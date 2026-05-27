@@ -101,24 +101,33 @@ python -m eval.run_eval
 python -m eval.run_eval --judge
 ```
 
-Пример вывода:
+Пример вывода (Groq llama-4-scout-17b, 2026-05-27):
 
 ```
 =================================================================
-EVAL SUMMARY  (12 cases, 2026-05-25)
+EVAL SUMMARY  (12 cases, 2026-05-27)
 =================================================================
-  Match score in range : 10/12  (83%)
-  Match score MAE      : 0.017
-  Seniority accuracy   : 5/12  (42%)  ← цель LoRA: > 80%
+  Match score in range : 11/12  (92%)   ← лучший результат
+  Match score MAE      : 0.004          ← почти идеал
+  Seniority accuracy   : 5/12  (42%)   ← цель LoRA: > 80%
 
-  Skill recall         : 0.917
-  Skill precision      : 0.501
-  Skill F1             : 0.543
-  Advice similarity    : 0.787
-  Rouge-L (advice)     : 0.108
-  Avg latency          : 13067 ms (Ollama; OpenAI ~2–3s)
+  Skill recall         : 0.958
+  Skill precision      : 0.737
+  Skill F1             : 0.772
+  Advice similarity    : 0.772
+  Rouge-L (advice)     : 0.154
+  Avg latency          : 3727 ms
 =================================================================
 ```
+
+**Сравнение моделей:**
+
+| Модель | match_in_range | MAE | skill_f1 | latency |
+|---|---|---|---|---|
+| Ollama llama3 (baseline) | 83% | 0.017 | 0.543 | ~13s |
+| Groq llama-3.3-70b | 83% | 0.054 | 0.766 | 4341ms |
+| Groq llama-3.1-8b | 67% | 0.300 | 0.810 | 16983ms |
+| **Groq llama-4-scout** | **92%** | **0.004** | **0.772** | **3727ms** |
 
 ---
 
@@ -126,11 +135,13 @@ EVAL SUMMARY  (12 cases, 2026-05-25)
 
 | Проблема | Было | Стало | Решение |
 |---|---|---|---|
-| Ложные тревоги навыков | precision=0.056 | precision=0.501 | LLM-primary + NER-supplement; фильтр ## subword-токенов |
-| Точность сопоставления | MAE=0.119 | MAE=0.017 | semantic matching BAAI/bge + seniority penalty |
+| Ложные тревоги навыков | precision=0.056 | precision=0.737 | LLM-primary + NER-supplement; фильтр ## subword-токенов; _SKILL_RULES few-shot |
+| Точность сопоставления | MAE=0.119 | MAE=0.004 | semantic matching BAAI/bge + seniority penalty + Llama 4 Scout |
 | Seniority игнорировался в score | score=1.0 для junior→senior | penalty -20% | _seniority_penalty() в gap_node |
-| Бесполезная метрика текста | rouge_l=0.031 | advice_similarity=0.787 | косинусное сходство эмбеддингов вместо n-gram overlap |
+| Бесполезная метрика текста | rouge_l=0.031 | advice_similarity=0.772 | косинусное сходство эмбеддингов вместо n-gram overlap |
 | Язык ответа | иногда English на RU резюме | всегда правильный | detect_language() → {language} в промпт |
+| Vacancy skills мусор | NER добавлял "AI Engineer", "AI Lab" как навыки | убрано | NER только для resume_skills, vacancy_skills из LLM |
+| seniority_hint Literal ошибка | LangChain валидировал Literal до Pydantic → 400 | исправлено | str + field_validator(mode="before") |
 
 ## Известные ограничения (цели для LoRA)
 
@@ -182,4 +193,4 @@ LANGFUSE_SECRET_KEY=sk-lf-...
 | `eval/metrics.py` | ✅ advice_similarity, Rouge-L, skill recall/precision/F1, MAE, latency |
 | `eval/judge.py` | ✅ GPT-4o-mini, 4 критерия (relevance/actionability/accuracy/faithfulness) |
 | `eval/run_eval.py` | ✅ CLI, latency tracking, regression comparison, MLflow logging, JSONL |
-| `eval/results/` | ✅ eval_2026-05-21.jsonl, eval_2026-05-22.jsonl, eval_2026-05-25.jsonl |
+| `eval/results/` | ✅ eval_2026-05-22.jsonl, eval_2026-05-25.jsonl, eval_2026-05-27.jsonl (llama-4-scout, 92%) |
