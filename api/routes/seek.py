@@ -7,13 +7,14 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.agents.graph import build_graph
-from api.agents.nodes.parse import PROMPT, ParsedData, smart_truncate_resume
+from api.agents.nodes.parse import PROMPT, ParsedData
 from api.auth.deps import current_user_optional
 from api.clients.hh_client import get_vacancy, vacancy_to_text
 from api.clients.vacancy_search import SearchFilters, format_salary, get_search_provider
 from api.db.models import SeekSession, get_session
 from api.llm.provider import get_llm
 from api.llm.streaming import run_graph, sse_encode
+from api.settings import settings
 
 router = APIRouter(prefix="/api", tags=["seek"])
 
@@ -47,7 +48,7 @@ async def seek_vacancies(
                 chain = PROMPT | llm.with_structured_output(ParsedData)
                 try:
                     parsed: ParsedData = await chain.ainvoke({
-                        "resume": smart_truncate_resume(body.resume),
+                        "resume": body.resume[:settings.resume_context_limit],
                         "vacancy": body.job_title or "Software Engineer",
                     })
                     skills = parsed.resume_skills

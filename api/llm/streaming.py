@@ -26,6 +26,8 @@ def _get_model_name() -> str:
     from api.settings import settings
     if settings.llm_provider == "ollama":
         return f"ollama/{settings.ollama_model}"
+    if settings.llm_provider == "groq":
+        return f"groq/{settings.groq_model}"
     return f"openai/{settings.openai_model}"
 
 

@@ -44,14 +44,13 @@ async def _auto_index_vacancy(text: str, title: str, skills: list[str]) -> None:
 async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
     parsed = state.get("parsed", {})
 
+    # NER supplements resume skills only — vacancy skills come from LLM alone
+    # (NER on vacancy text picks up company names, job titles as ORG/MISC entities)
     resume_skills = merge_skills(
         parsed.get("resume_skills", []),
         _skill_extractor.extract(state["resume"]),
     )
-    vacancy_skills = merge_skills(
-        parsed.get("vacancy_skills", []),
-        _skill_extractor.extract(state["vacancy"]),
-    )
+    vacancy_skills = parsed.get("vacancy_skills", [])
 
     found, missing, raw_score = match_skills(resume_skills, vacancy_skills)
 
