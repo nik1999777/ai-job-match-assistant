@@ -18,7 +18,8 @@ from api.settings import settings
 
 router = APIRouter(prefix="/api", tags=["seek"])
 
-_HH_SEM = asyncio.Semaphore(5)
+_HH_SEM = asyncio.Semaphore(5)   # параллельные запросы к hh.ru API
+_LLM_SEM = asyncio.Semaphore(3)  # параллельные LLM-вызовы (TPM лимит Groq)
 
 
 class SeekRequest(BaseModel):
@@ -111,44 +112,45 @@ async def seek_vacancies(
                 graph = build_graph()
 
                 async def analyze_one(item) -> None:
-                    try:
-                        state = await run_graph(graph, body.resume, item.text, mode="seeker")
-                        score = state.get("match_score", 0.0)
-                        if score >= 0.75:
-                            decision = "strong_match"
-                        elif score >= 0.5:
-                            decision = "worth_considering"
-                        else:
-                            decision = "weak_match"
-                        result = {
-                            "event": "result",
-                            "vacancy_id": item.id,
-                            "title": item.title,
-                            "company": item.company,
-                            "url": item.url,
-                            "salary_str": item.salary_str,
-                            "match_score": round(score, 2),
-                            "decision": decision,
-                            "skills_found": state.get("skills_found", []),
-                            "skills_missing": state.get("skills_missing", []),
-                            "explanation": state.get("llm_response", ""),
-                        }
-                    except Exception as exc:
-                        result = {
-                            "event": "result",
-                            "vacancy_id": item.id,
-                            "title": item.title,
-                            "company": item.company,
-                            "url": item.url,
-                            "salary_str": item.salary_str,
-                            "match_score": 0.0,
-                            "decision": "weak_match",
-                            "skills_found": [],
-                            "skills_missing": [],
-                            "explanation": f"Analysis error: {exc}",
-                        }
-                    collected.append(result)
-                    await queue.put(result)
+                    async with _LLM_SEM:
+                        try:
+                            state = await run_graph(graph, body.resume, item.text, mode="seeker")
+                            score = state.get("match_score", 0.0)
+                            if score >= 0.75:
+                                decision = "strong_match"
+                            elif score >= 0.5:
+                                decision = "worth_considering"
+                            else:
+                                decision = "weak_match"
+                            result = {
+                                "event": "result",
+                                "vacancy_id": item.id,
+                                "title": item.title,
+                                "company": item.company,
+                                "url": item.url,
+                                "salary_str": item.salary_str,
+                                "match_score": round(score, 2),
+                                "decision": decision,
+                                "skills_found": state.get("skills_found", []),
+                                "skills_missing": state.get("skills_missing", []),
+                                "explanation": state.get("llm_response", ""),
+                            }
+                        except Exception as exc:
+                            result = {
+                                "event": "result",
+                                "vacancy_id": item.id,
+                                "title": item.title,
+                                "company": item.company,
+                                "url": item.url,
+                                "salary_str": item.salary_str,
+                                "match_score": 0.0,
+                                "decision": "weak_match",
+                                "skills_found": [],
+                                "skills_missing": [],
+                                "explanation": f"Analysis error: {exc}",
+                            }
+                        collected.append(result)
+                        await queue.put(result)
 
                 await asyncio.gather(*[analyze_one(i) for i in items])
 
