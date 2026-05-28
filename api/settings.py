@@ -23,7 +23,12 @@ class Settings(BaseSettings):
 
     # Semantic skill matching — cosine similarity threshold (0–1)
     # Lower = more permissive matches; higher = stricter
-    skill_match_threshold: float = 0.72
+    # Calibrated on BAAI/bge-small-en-v1.5 cosine similarities:
+    #   numpy ≈ TensorFlow  = 0.725  → false positive, must exclude  (< threshold)
+    #   LangChain ≈ LangGraph = 0.767 → true match, must include    (> threshold)
+    #   GitLab CI ≈ GitLab  = 0.845  → true match ✓
+    #   Postgres ≈ PostgreSQL = 0.934  → true match ✓
+    skill_match_threshold: float = 0.75
 
     # Match score decision thresholds (used in /batch and /seek)
     # score >= hire_threshold  → hire / strong_match

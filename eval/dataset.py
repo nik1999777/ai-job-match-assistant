@@ -106,8 +106,9 @@ TEST_CASES: list[EvalCase] = [
             "Требования: Kubernetes, Docker, CI/CD (GitLab или GitHub Actions), Terraform.\n"
             "Инфраструктура на AWS. Опыт с мониторингом Prometheus/Grafana обязателен."
         ),
-        expected_match_range=(0.65, 0.95),
-        # GitLab CI/CD covers "GitLab или GitHub Actions" — semantic matching handles this correctly
+        expected_match_range=(0.65, 1.00),
+        # GitLab CI/CD covers "GitLab или GitHub Actions" — semantic matching handles this correctly.
+        # Upper bound 1.00: when LLM simplifies OR to GitLab-only, candidate has all skills → perfect score.
         expected_missing_skills=[],
         expected_seniority="middle",
         reference_advice=(
