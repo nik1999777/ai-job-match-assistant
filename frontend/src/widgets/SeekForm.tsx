@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
 import { PdfFileCard } from '../components/PdfFileCard'
+import { TextContentCard } from '../components/TextContentCard'
 import { useSeekVacancies } from '../hooks/useSeekVacancies'
 import { useSeekStore } from '../store/seekStore'
 import { useUploadResume } from '../hooks/useUploadResume'
@@ -24,6 +25,9 @@ const EXPERIENCE_OPTIONS = [
 const COUNT_OPTIONS = [5, 10, 15, 20]
 
 type ResumeTab = 'text' | 'pdf'
+type InputMode = 'edit' | 'preview'
+
+const MIN_CHARS_TO_COLLAPSE = 80
 
 export function SeekForm() {
   const { seek, reset } = useSeekVacancies()
@@ -33,6 +37,7 @@ export function SeekForm() {
 
   const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
   const [resumeText, setResumeText] = useState('')
+  const [resumeMode, setResumeMode] = useState<InputMode>('edit')
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [pdfName, setPdfName] = useState('')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -93,18 +98,32 @@ export function SeekForm() {
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Резюме</label>
         <div className="flex gap-1 border-b mb-1">
-          <button type="button" className={tabCls('text')} onClick={() => setResumeTab('text')} disabled={loading}>Текст</button>
+          <button type="button" className={tabCls('text')} onClick={() => {
+            setResumeTab('text')
+            if (resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) setResumeMode('preview')
+          }} disabled={loading}>Текст</button>
           <button type="button" className={tabCls('pdf')}  onClick={() => setResumeTab('pdf')}  disabled={loading}>PDF</button>
         </div>
 
-        {resumeTab === 'text' && (
+        {resumeTab === 'text' && resumeMode === 'edit' && (
           <Textarea
             placeholder="Вставьте текст резюме…"
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
+            onBlur={() => {
+              if (resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) setResumeMode('preview')
+            }}
             rows={10}
             disabled={loading}
-            className="resize-none text-sm"
+            className="resize-none text-sm leading-relaxed"
+          />
+        )}
+        {resumeTab === 'text' && resumeMode === 'preview' && (
+          <TextContentCard
+            label="Текст резюме"
+            text={resumeText}
+            disabled={loading}
+            onEdit={() => setResumeMode('edit')}
           />
         )}
 
