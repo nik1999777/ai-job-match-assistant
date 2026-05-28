@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Textarea } from '../components/ui/textarea'
 import { PdfFileCard } from '../components/PdfFileCard'
-import { TextContentCard } from '../components/TextContentCard'
 import { useSeekVacancies } from '../hooks/useSeekVacancies'
 import { useSeekStore } from '../store/seekStore'
 import { useUploadResume } from '../hooks/useUploadResume'
@@ -24,20 +22,14 @@ const EXPERIENCE_OPTIONS = [
 
 const COUNT_OPTIONS = [5, 10, 15, 20]
 
-type ResumeTab = 'text' | 'pdf'
-type InputMode = 'edit' | 'preview'
-
-const MIN_CHARS_TO_COLLAPSE = 80
-
 export function SeekForm() {
   const { seek, reset } = useSeekVacancies()
   const status = useSeekStore((s) => s.status)
   const loading = status === 'loading'
   const done = status === 'done'
 
-  const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
+  // Resume — PDF only
   const [resumeText, setResumeText] = useState('')
-  const [resumeMode, setResumeMode] = useState<InputMode>('edit')
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [pdfName, setPdfName] = useState('')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -84,50 +76,14 @@ export function SeekForm() {
     )
   }
 
-  const tabCls = (t: ResumeTab) => [
-    'px-3 py-1.5 text-xs font-medium transition-colors',
-    resumeTab === t
-      ? 'border-b-2 border-primary text-primary'
-      : 'text-muted-foreground hover:text-foreground',
-  ].join(' ')
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
-      {/* Resume */}
+      {/* ── Resume (PDF only) ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Резюме</label>
-        <div className="flex gap-1 border-b mb-1">
-          <button type="button" className={tabCls('text')} onClick={() => {
-            setResumeTab('text')
-            if (resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) setResumeMode('preview')
-          }} disabled={loading}>Текст</button>
-          <button type="button" className={tabCls('pdf')}  onClick={() => setResumeTab('pdf')}  disabled={loading}>PDF</button>
-        </div>
 
-        {resumeTab === 'text' && resumeMode === 'edit' && (
-          <Textarea
-            placeholder="Вставьте текст резюме…"
-            value={resumeText}
-            onChange={(e) => setResumeText(e.target.value)}
-            onBlur={() => {
-              if (resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) setResumeMode('preview')
-            }}
-            rows={10}
-            disabled={loading}
-            className="resize-none text-sm leading-relaxed"
-          />
-        )}
-        {resumeTab === 'text' && resumeMode === 'preview' && (
-          <TextContentCard
-            label="Текст резюме"
-            text={resumeText}
-            disabled={loading}
-            onEdit={() => setResumeMode('edit')}
-          />
-        )}
-
-        {resumeTab === 'pdf' && pdfStatus === 'idle' && (
+        {pdfStatus === 'idle' && (
           <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input px-4 py-10 cursor-pointer hover:border-primary/50 transition-colors">
             <input
               type="file"
@@ -139,18 +95,19 @@ export function SeekForm() {
                 if (f) handlePdfFile(f)
               }}
             />
-            <p className="text-sm text-muted-foreground">Нажмите или перетащите PDF-файл</p>
+            <p className="text-sm text-muted-foreground">Загрузите PDF-резюме</p>
+            <p className="text-xs text-muted-foreground/60">Нажмите или перетащите файл сюда</p>
           </label>
         )}
 
-        {resumeTab === 'pdf' && (pdfStatus === 'loading' || upload.isPending) && (
+        {(pdfStatus === 'loading' || upload.isPending) && (
           <div className="flex items-center gap-2 rounded-md border border-input px-4 py-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Читаем {pdfName}…
           </div>
         )}
 
-        {resumeTab === 'pdf' && pdfStatus === 'done' && (
+        {pdfStatus === 'done' && (
           <PdfFileCard
             fileName={pdfName}
             fileUrl={pdfUrl}
@@ -160,7 +117,7 @@ export function SeekForm() {
           />
         )}
 
-        {resumeTab === 'pdf' && pdfStatus === 'error' && (
+        {pdfStatus === 'error' && (
           <div className="flex flex-col items-center gap-2 rounded-md border-2 border-dashed border-destructive/40 px-4 py-8">
             <p className="text-sm text-destructive">Ошибка парсинга — попробуйте другой PDF</p>
             <label className="text-xs text-muted-foreground underline cursor-pointer hover:text-foreground">
@@ -180,7 +137,7 @@ export function SeekForm() {
         )}
       </div>
 
-      {/* Job title */}
+      {/* ── Job title ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">
           Желаемая должность
@@ -196,7 +153,7 @@ export function SeekForm() {
         />
       </div>
 
-      {/* Filters grid */}
+      {/* ── Filters grid ── */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">Город</label>
@@ -254,7 +211,7 @@ export function SeekForm() {
         </div>
       </div>
 
-      {/* Remote toggle */}
+      {/* ── Remote toggle ── */}
       <label className="flex items-center gap-2 cursor-pointer select-none">
         <input
           type="checkbox"
@@ -268,7 +225,7 @@ export function SeekForm() {
 
       <Button type="submit" disabled={loading || !resumeText.trim()}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {loading ? 'Ищем…' : `Найти вакансии`}
+        {loading ? 'Ищем…' : 'Найти вакансии'}
       </Button>
     </form>
   )

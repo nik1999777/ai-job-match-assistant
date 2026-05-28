@@ -8,7 +8,6 @@ import { useAnalyze } from '../hooks/useAnalyze'
 import { useUploadResume } from '../hooks/useUploadResume'
 import { useAnalysisStore } from '../store/analysisStore'
 
-type ResumeTab = 'text' | 'pdf'
 type VacancyTab = 'url' | 'text'
 type InputMode = 'edit' | 'preview'
 
@@ -48,18 +47,17 @@ export function AnalyzeForm() {
   const loading = status === 'loading'
   const done = status === 'done'
 
-  const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
+  // Resume — PDF only
   const [resumeText, setResumeText] = useState('')
-  const [resumeMode, setResumeMode] = useState<InputMode>('edit')
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [pdfName, setPdfName] = useState('')
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
+  // Vacancy — URL or Text
   const [vacancyTab, setVacancyTab] = useState<VacancyTab>('url')
   const [vacancyUrl, setVacancyUrl] = useState('')
   const [vacancyText, setVacancyText] = useState('')
   const [vacancyMode, setVacancyMode] = useState<InputMode>('edit')
-
-  const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  const [pdfName, setPdfName] = useState('')
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   const upload = useUploadResume((text) => {
     setResumeText(text)
@@ -71,18 +69,6 @@ export function AnalyzeForm() {
     setPdfUrl(URL.createObjectURL(file))
     setPdfStatus('loading')
     upload.mutate({ data: { file } }, { onError: () => setPdfStatus('error') })
-  }
-
-  function handleResumeBlur() {
-    if (resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
-      setResumeMode('preview')
-    }
-  }
-
-  function handleVacancyBlur() {
-    if (vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
-      setVacancyMode('preview')
-    }
   }
 
   const hasResume = resumeText.trim()
@@ -97,11 +83,6 @@ export function AnalyzeForm() {
       vacancy: vacancyTab === 'text' ? vacancyText.trim() : undefined,
     })
   }
-
-  const resumeTabs = [
-    { id: 'text' as ResumeTab, label: 'Текст' },
-    { id: 'pdf' as ResumeTab,  label: 'PDF' },
-  ]
 
   const vacancyTabs = [
     { id: 'url' as VacancyTab, label: 'URL (hh.ru)' },
@@ -120,40 +101,11 @@ export function AnalyzeForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
-      {/* ── Resume ── */}
+      {/* ── Resume (PDF only) ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Резюме</label>
-        <TabBar tabs={resumeTabs} active={resumeTab} onSelect={(t) => {
-          setResumeTab(t)
-          // switching to text tab while already having text → go to preview
-          if (t === 'text' && resumeText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
-            setResumeMode('preview')
-          }
-        }} disabled={loading} />
 
-        {/* Text tab */}
-        {resumeTab === 'text' && resumeMode === 'edit' && (
-          <Textarea
-            placeholder="Вставьте текст резюме..."
-            value={resumeText}
-            onChange={(e) => setResumeText(e.target.value)}
-            onBlur={handleResumeBlur}
-            rows={12}
-            disabled={loading}
-            className="resize-none text-sm leading-relaxed"
-          />
-        )}
-        {resumeTab === 'text' && resumeMode === 'preview' && (
-          <TextContentCard
-            label="Текст резюме"
-            text={resumeText}
-            disabled={loading}
-            onEdit={() => setResumeMode('edit')}
-          />
-        )}
-
-        {/* PDF tab */}
-        {resumeTab === 'pdf' && pdfStatus === 'idle' && (
+        {pdfStatus === 'idle' && (
           <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input px-4 py-10 cursor-pointer hover:border-primary/50 transition-colors">
             <input
               type="file"
@@ -165,16 +117,19 @@ export function AnalyzeForm() {
                 if (f) handlePdfFile(f)
               }}
             />
-            <p className="text-sm text-muted-foreground">Нажмите или перетащите PDF-файл</p>
+            <p className="text-sm text-muted-foreground">Загрузите PDF-резюме</p>
+            <p className="text-xs text-muted-foreground/60">Нажмите или перетащите файл сюда</p>
           </label>
         )}
-        {resumeTab === 'pdf' && (pdfStatus === 'loading' || upload.isPending) && (
+
+        {(pdfStatus === 'loading' || upload.isPending) && (
           <div className="flex items-center gap-2 rounded-md border border-input px-4 py-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Читаем {pdfName}…
           </div>
         )}
-        {resumeTab === 'pdf' && pdfStatus === 'done' && (
+
+        {pdfStatus === 'done' && (
           <PdfFileCard
             fileName={pdfName}
             fileUrl={pdfUrl}
@@ -183,7 +138,8 @@ export function AnalyzeForm() {
             onReplace={handlePdfFile}
           />
         )}
-        {resumeTab === 'pdf' && pdfStatus === 'error' && (
+
+        {pdfStatus === 'error' && (
           <div className="flex flex-col items-center gap-2 rounded-md border-2 border-dashed border-destructive/40 px-4 py-8">
             <p className="text-sm text-destructive">Ошибка парсинга — попробуйте другой PDF</p>
             <label className="text-xs text-muted-foreground underline cursor-pointer hover:text-foreground">
@@ -203,15 +159,20 @@ export function AnalyzeForm() {
         )}
       </div>
 
-      {/* ── Vacancy ── */}
+      {/* ── Vacancy (URL or Text) ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Вакансия</label>
-        <TabBar tabs={vacancyTabs} active={vacancyTab} onSelect={(t) => {
-          setVacancyTab(t)
-          if (t === 'text' && vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
-            setVacancyMode('preview')
-          }
-        }} disabled={loading} />
+        <TabBar
+          tabs={vacancyTabs}
+          active={vacancyTab}
+          onSelect={(t) => {
+            setVacancyTab(t)
+            if (t === 'text' && vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
+              setVacancyMode('preview')
+            }
+          }}
+          disabled={loading}
+        />
 
         {vacancyTab === 'url' && (
           <input
@@ -229,7 +190,9 @@ export function AnalyzeForm() {
             placeholder="Вставьте текст вакансии..."
             value={vacancyText}
             onChange={(e) => setVacancyText(e.target.value)}
-            onBlur={handleVacancyBlur}
+            onBlur={() => {
+              if (vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) setVacancyMode('preview')
+            }}
             rows={8}
             disabled={loading}
             className="resize-none text-sm leading-relaxed"
