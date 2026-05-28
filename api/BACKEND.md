@@ -28,6 +28,8 @@ api/
 │   ├── seek.py          ← POST /api/seek — SSE поиск вакансий по резюме
 │   │                      flow: parse resume → Playwright search → enrich via API
 │   │                            → N×LangGraph параллельно → stream results
+│   │                      _HH_SEM(5): параллельные запросы к hh.ru API
+│   │                      _LLM_SEM(3): параллельные LLM-вызовы (TPM лимит Groq)
 │   ├── history.py       ← GET  /api/history — список анализов (paginated, mode filter, JWT required)
 │   │                      GET|DELETE /api/analyses/{id} (JWT required)
 │   │                      GET  /api/batch-history — история скринингов (JWT required)
@@ -40,6 +42,8 @@ api/
 │   ├── batch.py         ← POST /api/batch — пакетный анализ (mode=hr, макс 20)
 │   │                      optional auth: если авторизован → сохраняет BatchSession в БД
 │   │                      ответ включает id сессии (для ссылки на историю)
+│   │                      _LLM_SEM(3): ограничение параллельных LLM-вызовов (TPM лимит)
+│   │                      match_score_hire_threshold / consider_threshold из settings
 │   └── health.py        ← GET  /health   — healthcheck DB + Qdrant
 │
 ├── agents/          ← LangGraph пайплайн (вся бизнес-логика)
@@ -59,6 +63,7 @@ api/
 │   │                    Groq: per-client httpx proxy — только Groq трафик через прокси (hh.ru напрямую)
 │   ├── language.py    ← detect_language(text): Cyrillic ratio > 15% → "Russian"
 │   └── streaming.py   ← читает astream_events из LangGraph, шлёт SSE; Langfuse трейсинг:
+│                          @cache на _langfuse_client() — singleton на весь процесс (не per-request)
 │                          trace per request (user_id, session_id, tags=[mode, seniority])
 │                          span() для parse_node/gap_node — input/output/latency_ms
 │                          generation() для advise_node — model name + LLM ответ
@@ -72,7 +77,7 @@ api/
 │   ├── skill_matcher.py    ← двухэтапный matching: exact norm → BAAI/bge cosine similarity
 │   │                          merge_skills(primary, supplement) — LLM первичный, NER дополняет
 │   │                          match_skills(resume, vacancy) → (found, missing, score)
-│   │                          threshold из settings.skill_match_threshold (SKILL_MATCH_THRESHOLD .env)
+│   │                          threshold=0.75 (data-driven: numpy≈TF=0.725 убран, LangChain≈LangGraph=0.767 сохранён)
 │   └── seniority_clf.py    ← DistilBERT + LoRA: junior / middle / senior
 │
 ├── rag/
