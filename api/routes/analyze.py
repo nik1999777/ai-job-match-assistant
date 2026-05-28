@@ -53,6 +53,7 @@ async def analyze(
         session_id=session.id,
         resume_text=resume_text,
         vacancy_text=vacancy_text,
+        vacancy_url=body.vacancy_url,
     )
     db.add(analysis)
     await db.commit()

@@ -37,6 +37,7 @@ class AnalysisDetail(BaseModel):
     mode: str
     resume_text: str
     vacancy_text: str
+    vacancy_url: str | None
     match_score: float | None
     seniority: str | None
     seniority_confidence: float | None
@@ -174,6 +175,7 @@ async def get_analysis(
         mode=mode,
         resume_text=analysis.resume_text,
         vacancy_text=analysis.vacancy_text,
+        vacancy_url=analysis.vacancy_url,
         match_score=analysis.match_score,
         seniority=analysis.seniority,
         seniority_confidence=analysis.seniority_confidence,

@@ -27,6 +27,7 @@ export interface AnalysisDetail {
   mode: string
   resume_text: string
   vacancy_text: string
+  vacancy_url: string | null
   match_score: number | null
   seniority: string | null
   seniority_confidence: number | null

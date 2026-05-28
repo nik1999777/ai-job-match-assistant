@@ -54,6 +54,7 @@ class Analysis(Base):
 
     resume_text: Mapped[str] = mapped_column(Text)
     vacancy_text: Mapped[str] = mapped_column(Text)
+    vacancy_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     seniority: Mapped[str | None] = mapped_column(String(32), nullable=True)

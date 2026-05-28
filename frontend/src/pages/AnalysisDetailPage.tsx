@@ -1,7 +1,8 @@
+import { useState } from 'react'
+import { ClipboardCopy, Check, ExternalLink } from 'lucide-react'
 import { useAnalysisDetail } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
-import { TextContentCard } from '../components/TextContentCard'
 
 interface Props {
   analysisId: number
@@ -34,6 +35,30 @@ function DecisionBadge({ decision }: { decision: string | null }) {
   )
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      title="Скопировать текст резюме"
+    >
+      {copied
+        ? <><Check className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600">Скопировано</span></>
+        : <><ClipboardCopy className="h-3.5 w-3.5" />Скопировать резюме</>
+      }
+    </button>
+  )
+}
+
 export function AnalysisDetailPage({ analysisId, onBack }: Props) {
   const { data, isLoading, isError } = useAnalysisDetail(analysisId)
 
@@ -60,10 +85,30 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
 
         {data && (
           <>
-            {/* Шапка с метриками */}
+            {/* ── Header card: links first, then score ── */}
             <div className="flex items-start gap-6 p-6 border rounded-xl bg-card">
               <ScoreRing score={data.match_score} />
-              <div className="space-y-2 flex-1">
+
+              <div className="space-y-3 flex-1 min-w-0">
+                {/* Vacancy link + resume copy — at the top */}
+                <div className="flex flex-wrap items-center gap-4">
+                  {data.vacancy_url ? (
+                    <a
+                      href={data.vacancy_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Открыть вакансию
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Вакансия (текст)</span>
+                  )}
+                  <CopyButton text={data.resume_text} />
+                </div>
+
+                {/* Badges */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{data.mode}</Badge>
                   {data.seniority && data.seniority !== 'unknown' && (
@@ -76,13 +121,14 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
                     </span>
                   )}
                 </div>
+
                 <p className="text-xs text-muted-foreground">
                   {new Date(data.created_at).toLocaleString()}
                 </p>
               </div>
             </div>
 
-            {/* Навыки */}
+            {/* ── Skills ── */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border rounded-xl p-4 space-y-3">
                 <p className="text-sm font-medium">Matched skills</p>
@@ -110,7 +156,7 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
               </div>
             </div>
 
-            {/* Совет LLM */}
+            {/* ── LLM advice ── */}
             {data.llm_response && (
               <div className="border rounded-xl p-6 space-y-3">
                 <p className="text-sm font-medium">Рекомендация</p>
@@ -121,12 +167,6 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
                 </div>
               </div>
             )}
-
-            {/* Тексты — collapsible, closed by default */}
-            <div className="grid grid-cols-2 gap-4">
-              <TextContentCard label="Резюме" text={data.resume_text} />
-              <TextContentCard label="Вакансия" text={data.vacancy_text} />
-            </div>
           </>
         )}
       </div>
