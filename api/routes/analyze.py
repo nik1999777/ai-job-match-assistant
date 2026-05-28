@@ -16,9 +16,10 @@ router = APIRouter(prefix="/api", tags=["analyze"])
 
 class AnalyzeRequest(BaseModel):
     resume: str | None = None
-    vacancy: str | None = None       # raw text
-    vacancy_url: str | None = None   # hh.ru URL
-    mode: str = "seeker"             # seeker | hr
+    resume_file_id: str | None = None  # UUID of saved PDF
+    vacancy: str | None = None         # raw text
+    vacancy_url: str | None = None     # hh.ru URL
+    mode: str = "seeker"               # seeker | hr
 
 
 @router.post("/analyze")
@@ -52,6 +53,7 @@ async def analyze(
     analysis = Analysis(
         session_id=session.id,
         resume_text=resume_text,
+        resume_file_id=body.resume_file_id,
         vacancy_text=vacancy_text,
         vacancy_url=body.vacancy_url,
     )

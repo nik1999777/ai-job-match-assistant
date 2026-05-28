@@ -44,6 +44,7 @@ export function SeekForm() {
   const upload = useUploadResume((text) => {
     setResumeText(text)
     setPdfStatus('done')
+    // file_id not used in seek (no history download for seek sessions yet)
   })
 
   function handlePdfFile(file: File) {
@@ -111,7 +112,6 @@ export function SeekForm() {
           <PdfFileCard
             fileName={pdfName}
             fileUrl={pdfUrl}
-            text={resumeText}
             disabled={loading}
             onReplace={handlePdfFile}
           />

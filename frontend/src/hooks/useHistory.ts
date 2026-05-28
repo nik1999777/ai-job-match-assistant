@@ -26,6 +26,7 @@ export interface AnalysisDetail {
   created_at: string
   mode: string
   resume_text: string
+  resume_file_id: string | null
   vacancy_text: string
   vacancy_url: string | null
   match_score: number | null

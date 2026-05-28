@@ -14,6 +14,7 @@ export function AnalyzeForm() {
 
   // Resume — PDF only
   const [resumeText, setResumeText] = useState('')
+  const [resumeFileId, setResumeFileId] = useState<string | null>(null)
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [pdfName, setPdfName] = useState('')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -21,8 +22,9 @@ export function AnalyzeForm() {
   // Vacancy — URL only
   const [vacancyUrl, setVacancyUrl] = useState('')
 
-  const upload = useUploadResume((text) => {
+  const upload = useUploadResume((text, fileId) => {
     setResumeText(text)
+    setResumeFileId(fileId)
     setPdfStatus('done')
   })
 
@@ -41,6 +43,7 @@ export function AnalyzeForm() {
     if (!hasResume || !hasVacancy) return
     analyze({
       resume: resumeText.trim(),
+      resume_file_id: resumeFileId,
       vacancy_url: vacancyUrl.trim(),
     })
   }

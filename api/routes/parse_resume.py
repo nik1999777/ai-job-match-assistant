@@ -1,3 +1,6 @@
+import uuid
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, UploadFile
 
 from api.clients.resume_parser import get_resume_from_pdf
@@ -5,6 +8,7 @@ from api.clients.resume_parser import get_resume_from_pdf
 router = APIRouter(prefix="/api", tags=["resume"])
 
 _MAX_PDF_MB = 10
+UPLOADS_DIR = Path("uploads/resumes")
 
 
 @router.post("/parse-resume")
@@ -24,4 +28,9 @@ async def parse_resume(file: UploadFile) -> dict[str, str]:
     if not text.strip():
         raise HTTPException(status_code=422, detail="PDF appears to be empty or image-only")
 
-    return {"text": text}
+    # Save original PDF so it can be downloaded later from history
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    file_id = str(uuid.uuid4())
+    (UPLOADS_DIR / f"{file_id}.pdf").write_bytes(data)
+
+    return {"text": text, "file_id": file_id}

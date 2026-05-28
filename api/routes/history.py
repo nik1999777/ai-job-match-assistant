@@ -36,6 +36,7 @@ class AnalysisDetail(BaseModel):
     created_at: str
     mode: str
     resume_text: str
+    resume_file_id: str | None
     vacancy_text: str
     vacancy_url: str | None
     match_score: float | None
@@ -174,6 +175,7 @@ async def get_analysis(
         created_at=analysis.created_at.isoformat(),
         mode=mode,
         resume_text=analysis.resume_text,
+        resume_file_id=analysis.resume_file_id,
         vacancy_text=analysis.vacancy_text,
         vacancy_url=analysis.vacancy_url,
         match_score=analysis.match_score,

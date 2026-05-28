@@ -2,6 +2,7 @@ import { Download, ExternalLink } from 'lucide-react'
 import { useAnalysisDetail } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
+import { getToken } from '../store/authStore'
 
 interface Props {
   analysisId: number
@@ -34,13 +35,18 @@ function DecisionBadge({ decision }: { decision: string | null }) {
   )
 }
 
-function DownloadResumeButton({ text }: { text: string }) {
-  function handleDownload() {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+function DownloadResumeButton({ fileId }: { fileId: string }) {
+  async function handleDownload() {
+    const token = getToken()
+    const res = await fetch(`/api/resumes/${fileId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) return
+    const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'resume.txt'
+    a.download = 'resume.pdf'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -50,7 +56,7 @@ function DownloadResumeButton({ text }: { text: string }) {
       type="button"
       onClick={handleDownload}
       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      title="Скачать текст резюме"
+      title="Скачать оригинальный PDF"
     >
       <Download className="h-3.5 w-3.5" />
       Скачать резюме
@@ -104,7 +110,9 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
                   ) : (
                     <span className="text-xs text-muted-foreground">Вакансия (текст)</span>
                   )}
-                  <DownloadResumeButton text={data.resume_text} />
+                  {data.resume_file_id && (
+                    <DownloadResumeButton fileId={data.resume_file_id} />
+                  )}
                 </div>
 
                 {/* Badges */}

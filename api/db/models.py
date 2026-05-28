@@ -53,6 +53,7 @@ class Analysis(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     resume_text: Mapped[str] = mapped_column(Text)
+    resume_file_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     vacancy_text: Mapped[str] = mapped_column(Text)
     vacancy_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
