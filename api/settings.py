@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # Lower = more permissive matches; higher = stricter
     skill_match_threshold: float = 0.72
 
+    # Match score decision thresholds (used in /batch and /seek)
+    # score >= hire_threshold  → hire / strong_match
+    # score >= consider_threshold → borderline / worth_considering
+    # score < consider_threshold  → no_hire / weak_match
+    match_score_hire_threshold: float = 0.75
+    match_score_consider_threshold: float = 0.50
+
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 дней

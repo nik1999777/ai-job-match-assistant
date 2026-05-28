@@ -10,12 +10,14 @@ from api.agents.graph import build_graph
 from api.auth.deps import current_user_optional
 from api.db.models import BatchSession, get_session
 from api.llm.streaming import run_graph
+from api.settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["batch"])
 
 _MAX_BATCH_SIZE = 20
+_LLM_SEM = asyncio.Semaphore(3)  # параллельные LLM-вызовы (TPM лимит)
 
 
 class ResumeItem(BaseModel):
@@ -58,35 +60,36 @@ async def batch_analyze(
     graph = build_graph()
 
     async def analyze_one(item: ResumeItem) -> CandidateResult:
-        try:
-            state = await run_graph(graph, item.resume, body.vacancy, mode="hr")
-        except Exception as exc:
-            logger.error("batch: analysis failed for %s: %s", item.candidate_id, exc, exc_info=True)
+        async with _LLM_SEM:
+            try:
+                state = await run_graph(graph, item.resume, body.vacancy, mode="hr")
+            except Exception as exc:
+                logger.error("batch: analysis failed for %s: %s", item.candidate_id, exc, exc_info=True)
+                return CandidateResult(
+                    candidate_id=item.candidate_id,
+                    match_score=0.0,
+                    decision="no_hire",
+                    seniority="unknown",
+                    skills_found=[],
+                    skills_missing=[],
+                    explanation="Analysis unavailable.",
+                )
+            score = state.get("match_score", 0.0)
+            if score >= settings.match_score_hire_threshold:
+                decision = "hire"
+            elif score >= settings.match_score_consider_threshold:
+                decision = "borderline"
+            else:
+                decision = "no_hire"
             return CandidateResult(
                 candidate_id=item.candidate_id,
-                match_score=0.0,
-                decision="no_hire",
-                seniority="unknown",
-                skills_found=[],
-                skills_missing=[],
-                explanation=f"Analysis error: {exc}",
+                match_score=round(score, 2),
+                decision=decision,
+                seniority=state.get("seniority", "unknown"),
+                skills_found=state.get("skills_found", []),
+                skills_missing=state.get("skills_missing", []),
+                explanation=state.get("llm_response", ""),
             )
-        score = state.get("match_score", 0.0)
-        if score >= 0.75:
-            decision = "hire"
-        elif score >= 0.5:
-            decision = "borderline"
-        else:
-            decision = "no_hire"
-        return CandidateResult(
-            candidate_id=item.candidate_id,
-            match_score=round(score, 2),
-            decision=decision,
-            seniority=state.get("seniority", "unknown"),
-            skills_found=state.get("skills_found", []),
-            skills_missing=state.get("skills_missing", []),
-            explanation=state.get("llm_response", ""),
-        )
 
     results = await asyncio.gather(*[analyze_one(r) for r in body.resumes])
     ranked = sorted(results, key=lambda x: x.match_score, reverse=True)

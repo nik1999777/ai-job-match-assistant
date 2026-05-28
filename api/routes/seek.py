@@ -1,7 +1,10 @@
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, Depends
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +17,7 @@ from api.clients.vacancy_search import SearchFilters, format_salary, get_search_
 from api.db.models import SeekSession, get_session
 from api.llm.provider import get_llm
 from api.llm.streaming import run_graph, sse_encode
-from api.settings import settings
+from api.settings import settings  # match_score_hire_threshold, match_score_consider_threshold
 
 router = APIRouter(prefix="/api", tags=["seek"])
 
@@ -116,9 +119,9 @@ async def seek_vacancies(
                         try:
                             state = await run_graph(graph, body.resume, item.text, mode="seeker")
                             score = state.get("match_score", 0.0)
-                            if score >= 0.75:
+                            if score >= settings.match_score_hire_threshold:
                                 decision = "strong_match"
-                            elif score >= 0.5:
+                            elif score >= settings.match_score_consider_threshold:
                                 decision = "worth_considering"
                             else:
                                 decision = "weak_match"
@@ -136,6 +139,7 @@ async def seek_vacancies(
                                 "explanation": state.get("llm_response", ""),
                             }
                         except Exception as exc:
+                            logger.warning("seek: analysis failed for vacancy %s: %s", item.id, exc)
                             result = {
                                 "event": "result",
                                 "vacancy_id": item.id,
@@ -147,7 +151,7 @@ async def seek_vacancies(
                                 "decision": "weak_match",
                                 "skills_found": [],
                                 "skills_missing": [],
-                                "explanation": f"Analysis error: {exc}",
+                                "explanation": "Analysis unavailable.",
                             }
                         collected.append(result)
                         await queue.put(result)

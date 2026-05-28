@@ -1,12 +1,15 @@
 import json
 import logging
 import time
+from functools import cache
 from typing import Any, AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
 
+@cache
 def _langfuse_client():
+    """Singleton — created once per process, reused across all requests."""
     from api.settings import settings
     if not settings.langfuse_public_key or not settings.langfuse_secret_key:
         return None
