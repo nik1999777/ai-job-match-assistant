@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
+import { PdfFileCard } from '../components/PdfFileCard'
 import { useSeekVacancies } from '../hooks/useSeekVacancies'
 import { useSeekStore } from '../store/seekStore'
 import { useUploadResume } from '../hooks/useUploadResume'
@@ -47,6 +48,13 @@ export function SeekForm() {
     setResumeText(text)
     setPdfStatus('done')
   })
+
+  function handlePdfFile(file: File) {
+    setPdfName(file.name)
+    setPdfUrl(URL.createObjectURL(file))
+    setPdfStatus('loading')
+    upload.mutate({ data: { file } }, { onError: () => setPdfStatus('error') })
+  }
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
@@ -96,11 +104,11 @@ export function SeekForm() {
             onChange={(e) => setResumeText(e.target.value)}
             rows={10}
             disabled={loading}
-            className="resize-none font-mono text-xs"
+            className="resize-none text-sm"
           />
         )}
 
-        {resumeTab === 'pdf' && (
+        {resumeTab === 'pdf' && pdfStatus === 'idle' && (
           <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input px-4 py-10 cursor-pointer hover:border-primary/50 transition-colors">
             <input
               type="file"
@@ -109,26 +117,47 @@ export function SeekForm() {
               disabled={loading || upload.isPending}
               onChange={(e) => {
                 const f = e.target.files?.[0]
-                if (!f) return
-                setPdfName(f.name)
-                setPdfUrl(URL.createObjectURL(f))
-                setPdfStatus('loading')
-                upload.mutate({ data: { file: f } }, { onError: () => setPdfStatus('error') })
+                if (f) handlePdfFile(f)
               }}
             />
-            {pdfStatus === 'idle'    && <p className="text-sm text-muted-foreground">Нажмите чтобы выбрать PDF</p>}
-            {pdfStatus === 'loading' && <p className="text-sm text-muted-foreground">Читаем {pdfName}…</p>}
-            {pdfStatus === 'done'    && (
-              <p className="text-sm text-green-600">
-                ✓{' '}
-                <a href={pdfUrl!} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline" onClick={(e) => e.stopPropagation()}>
-                  {pdfName}
-                </a>
-                {' '}— текст извлечён
-              </p>
-            )}
-            {pdfStatus === 'error'   && <p className="text-sm text-red-500">Ошибка парсинга</p>}
+            <p className="text-sm text-muted-foreground">Нажмите или перетащите PDF-файл</p>
           </label>
+        )}
+
+        {resumeTab === 'pdf' && (pdfStatus === 'loading' || upload.isPending) && (
+          <div className="flex items-center gap-2 rounded-md border border-input px-4 py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Читаем {pdfName}…
+          </div>
+        )}
+
+        {resumeTab === 'pdf' && pdfStatus === 'done' && (
+          <PdfFileCard
+            fileName={pdfName}
+            fileUrl={pdfUrl}
+            text={resumeText}
+            disabled={loading}
+            onReplace={handlePdfFile}
+          />
+        )}
+
+        {resumeTab === 'pdf' && pdfStatus === 'error' && (
+          <div className="flex flex-col items-center gap-2 rounded-md border-2 border-dashed border-destructive/40 px-4 py-8">
+            <p className="text-sm text-destructive">Ошибка парсинга — попробуйте другой PDF</p>
+            <label className="text-xs text-muted-foreground underline cursor-pointer hover:text-foreground">
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                disabled={loading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handlePdfFile(f)
+                }}
+              />
+              Выбрать другой файл
+            </label>
+          </div>
         )}
       </div>
 
