@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Upload, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Textarea } from '../components/ui/textarea'
+import { TextContentCard } from '../components/TextContentCard'
 import { parseResumeApiParseResumePost } from '../api/generated'
 import type { BatchRequest } from '../api/generated'
 
@@ -13,8 +13,6 @@ interface Candidate {
   url: string
 }
 
-type VacancyTab = 'url' | 'text'
-
 interface Props {
   loading: boolean
   done: boolean
@@ -24,7 +22,6 @@ interface Props {
 
 export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
   const [candidates, setCandidates] = useState<Candidate[]>([])
-  const [vacancyTab, setVacancyTab] = useState<VacancyTab>('url')
   const [vacancyUrl, setVacancyUrl] = useState('')
   const [vacancyText, setVacancyText] = useState('')
   const [fetchingVacancy, setFetchingVacancy] = useState(false)
@@ -46,7 +43,6 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
       }
       const data = await res.json()
       setVacancyText(data.text)
-      setVacancyTab('text')
     } catch (e) {
       setFetchError(String((e as Error).message ?? e))
     } finally {
@@ -102,7 +98,6 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
     setCandidates([])
     setVacancyUrl('')
     setVacancyText('')
-    setVacancyTab('url')
     setFetchError('')
     onReset()
   }
@@ -110,28 +105,14 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
   const readyCount = candidates.filter((c) => c.status === 'ready').length
   const canSubmit = readyCount > 0 && vacancyText.trim().length > 0 && !loading
 
-  const tabCls = (t: VacancyTab) => [
-    'px-3 py-1.5 text-xs font-medium transition-colors',
-    vacancyTab === t
-      ? 'border-b-2 border-primary text-primary'
-      : 'text-muted-foreground hover:text-foreground',
-  ].join(' ')
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      {/* Vacancy */}
+
+      {/* ── Vacancy (URL → fetch → card) ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Вакансия</label>
-        <div className="flex gap-1 border-b mb-1">
-          <button type="button" className={tabCls('url')} onClick={() => setVacancyTab('url')} disabled={loading}>
-            URL (hh.ru)
-          </button>
-          <button type="button" className={tabCls('text')} onClick={() => setVacancyTab('text')} disabled={loading}>
-            Текст
-          </button>
-        </div>
 
-        {vacancyTab === 'url' && (
+        {!vacancyText && (
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
               <input
@@ -152,27 +133,20 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
                 {fetchingVacancy ? 'Загружаем...' : 'Загрузить'}
               </Button>
             </div>
-            {fetchError && <p className="text-xs text-red-500">{fetchError}</p>}
+            {fetchError && <p className="text-xs text-destructive">{fetchError}</p>}
           </div>
         )}
 
-        {vacancyTab === 'text' && (
-          <Textarea
-            placeholder="Вставьте полный текст вакансии..."
-            value={vacancyText}
-            onChange={(e) => setVacancyText(e.target.value)}
-            rows={6}
-            disabled={loading}
-            className="resize-none text-xs"
+        {vacancyText && (
+          <TextContentCard
+            label="Вакансия загружена"
+            text={vacancyText}
+            onEdit={() => { setVacancyText(''); setFetchError('') }}
           />
-        )}
-
-        {vacancyTab === 'url' && vacancyText && (
-          <p className="text-xs text-green-600">✓ Текст загружен — переключитесь на «Текст»</p>
         )}
       </div>
 
-      {/* Resume upload */}
+      {/* ── Candidate PDFs ── */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Резюме кандидатов (PDF)</label>
         <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input px-4 py-8 cursor-pointer hover:border-primary/50 transition-colors">
@@ -186,7 +160,7 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
           />
           <Upload className="h-5 w-5 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Нажмите или перетащите PDF</p>
-          <p className="text-xs text-muted-foreground">Можно выбрать несколько · макс. 20</p>
+          <p className="text-xs text-muted-foreground/60">Можно выбрать несколько · макс. 20</p>
         </label>
 
         {candidates.length > 0 && (
@@ -195,15 +169,23 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
               <li key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                 <span className="flex items-center gap-2">
                   {c.status === 'parsing' && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                  {c.status === 'ready'   && <span className="text-green-500 text-xs font-bold">✓</span>}
-                  {c.status === 'error'   && <span className="text-red-500 text-xs font-bold">✗</span>}
-                  <a href={c.url} target="_blank" rel="noopener noreferrer"
-                    className={`underline hover:no-underline ${c.status === 'error' ? 'text-red-500' : ''}`}>
+                  {c.status === 'ready'   && <span className="text-green-600 text-xs font-bold">✓</span>}
+                  {c.status === 'error'   && <span className="text-destructive text-xs font-bold">✗</span>}
+                  <a
+                    href={c.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`hover:underline ${c.status === 'error' ? 'text-destructive' : ''}`}
+                  >
                     {c.name}
                   </a>
                 </span>
-                <button type="button" onClick={() => removeCandidate(c.id)} disabled={loading}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => removeCandidate(c.id)}
+                  disabled={loading}
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </li>

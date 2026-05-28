@@ -1,5 +1,6 @@
 import { useBatchDetail, type CandidateResult } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
+import { TextContentCard } from '../components/TextContentCard'
 
 interface Props {
   sessionId: number
@@ -84,10 +85,7 @@ export function BatchDetailPage({ sessionId, onBack }: Props) {
       </div>
 
       {data && (
-        <div className="border rounded-xl p-3 bg-muted/40">
-          <p className="text-xs text-muted-foreground mb-1">Вакансия</p>
-          <p className="text-sm leading-relaxed line-clamp-3">{data.vacancy_text}</p>
-        </div>
+        <TextContentCard label="Вакансия" text={data.vacancy_text} />
       )}
 
       {isLoading && [1, 2, 3].map(i => (

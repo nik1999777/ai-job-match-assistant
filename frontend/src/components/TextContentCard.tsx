@@ -5,7 +5,8 @@ interface TextContentCardProps {
   label: string
   text: string
   disabled?: boolean
-  onEdit: () => void
+  /** If provided, shows an "Редактировать" button. Omit for read-only display. */
+  onEdit?: () => void
 }
 
 const PREVIEW_CHARS = 400
@@ -48,16 +49,18 @@ export function TextContentCard({ label, text, disabled, onEdit }: TextContentCa
         </div>
       )}
 
-      {/* Edit button */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onEdit}
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline transition-colors disabled:opacity-50 self-start"
-      >
-        <Pencil className="h-3 w-3" />
-        Редактировать
-      </button>
+      {/* Edit button — only in form mode */}
+      {onEdit && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onEdit}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline transition-colors disabled:opacity-50 self-start"
+        >
+          <Pencil className="h-3 w-3" />
+          Редактировать
+        </button>
+      )}
     </div>
   )
 }

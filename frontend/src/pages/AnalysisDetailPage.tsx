@@ -1,6 +1,7 @@
 import { useAnalysisDetail } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
+import { TextContentCard } from '../components/TextContentCard'
 
 interface Props {
   analysisId: number
@@ -121,20 +122,10 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
               </div>
             )}
 
-            {/* Тексты */}
+            {/* Тексты — collapsible, closed by default */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="border rounded-xl p-4 space-y-2">
-                <p className="text-sm font-medium">Резюме</p>
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                  {data.resume_text}
-                </p>
-              </div>
-              <div className="border rounded-xl p-4 space-y-2">
-                <p className="text-sm font-medium">Вакансия</p>
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                  {data.vacancy_text}
-                </p>
-              </div>
+              <TextContentCard label="Резюме" text={data.resume_text} />
+              <TextContentCard label="Вакансия" text={data.vacancy_text} />
             </div>
           </>
         )}
