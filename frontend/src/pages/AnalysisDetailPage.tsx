@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { ClipboardCopy, Check, ExternalLink } from 'lucide-react'
+import { Download, ExternalLink } from 'lucide-react'
 import { useAnalysisDetail } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
@@ -35,26 +34,26 @@ function DecisionBadge({ decision }: { decision: string | null }) {
   )
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+function DownloadResumeButton({ text }: { text: string }) {
+  function handleDownload() {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'resume.txt'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
     <button
       type="button"
-      onClick={handleCopy}
+      onClick={handleDownload}
       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      title="Скопировать текст резюме"
+      title="Скачать текст резюме"
     >
-      {copied
-        ? <><Check className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600">Скопировано</span></>
-        : <><ClipboardCopy className="h-3.5 w-3.5" />Скопировать резюме</>
-      }
+      <Download className="h-3.5 w-3.5" />
+      Скачать резюме
     </button>
   )
 }
@@ -105,7 +104,7 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
                   ) : (
                     <span className="text-xs text-muted-foreground">Вакансия (текст)</span>
                   )}
-                  <CopyButton text={data.resume_text} />
+                  <DownloadResumeButton text={data.resume_text} />
                 </div>
 
                 {/* Badges */}
