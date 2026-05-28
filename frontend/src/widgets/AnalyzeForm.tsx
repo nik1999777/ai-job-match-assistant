@@ -1,45 +1,10 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Textarea } from '../components/ui/textarea'
 import { PdfFileCard } from '../components/PdfFileCard'
-import { TextContentCard } from '../components/TextContentCard'
 import { useAnalyze } from '../hooks/useAnalyze'
 import { useUploadResume } from '../hooks/useUploadResume'
 import { useAnalysisStore } from '../store/analysisStore'
-
-type VacancyTab = 'url' | 'text'
-type InputMode = 'edit' | 'preview'
-
-const MIN_CHARS_TO_COLLAPSE = 80
-
-function TabBar<T extends string>({ tabs, active, onSelect, disabled }: {
-  tabs: { id: T; label: string }[]
-  active: T
-  onSelect: (id: T) => void
-  disabled: boolean
-}) {
-  return (
-    <div className="flex gap-1 border-b mb-1">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onSelect(t.id)}
-          disabled={disabled}
-          className={[
-            'px-3 py-1.5 text-xs font-medium transition-colors',
-            active === t.id
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-foreground',
-          ].join(' ')}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export function AnalyzeForm() {
   const { analyze, reset } = useAnalyze()
@@ -53,11 +18,8 @@ export function AnalyzeForm() {
   const [pdfName, setPdfName] = useState('')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
-  // Vacancy — URL or Text
-  const [vacancyTab, setVacancyTab] = useState<VacancyTab>('url')
+  // Vacancy — URL only
   const [vacancyUrl, setVacancyUrl] = useState('')
-  const [vacancyText, setVacancyText] = useState('')
-  const [vacancyMode, setVacancyMode] = useState<InputMode>('edit')
 
   const upload = useUploadResume((text) => {
     setResumeText(text)
@@ -72,22 +34,16 @@ export function AnalyzeForm() {
   }
 
   const hasResume = resumeText.trim()
-  const hasVacancy = vacancyTab === 'url' ? vacancyUrl.trim() : vacancyText.trim()
+  const hasVacancy = vacancyUrl.trim()
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     if (!hasResume || !hasVacancy) return
     analyze({
-      resume: resumeText.trim() || undefined,
-      vacancy_url: vacancyTab === 'url' ? vacancyUrl.trim() : undefined,
-      vacancy: vacancyTab === 'text' ? vacancyText.trim() : undefined,
+      resume: resumeText.trim(),
+      vacancy_url: vacancyUrl.trim(),
     })
   }
-
-  const vacancyTabs = [
-    { id: 'url' as VacancyTab, label: 'URL (hh.ru)' },
-    { id: 'text' as VacancyTab, label: 'Текст' },
-  ]
 
   if (done) {
     return (
@@ -133,7 +89,6 @@ export function AnalyzeForm() {
           <PdfFileCard
             fileName={pdfName}
             fileUrl={pdfUrl}
-            text={resumeText}
             disabled={loading}
             onReplace={handlePdfFile}
           />
@@ -159,52 +114,27 @@ export function AnalyzeForm() {
         )}
       </div>
 
-      {/* ── Vacancy (URL or Text) ── */}
+      {/* ── Vacancy (URL only) ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Вакансия</label>
-        <TabBar
-          tabs={vacancyTabs}
-          active={vacancyTab}
-          onSelect={(t) => {
-            setVacancyTab(t)
-            if (t === 'text' && vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) {
-              setVacancyMode('preview')
-            }
-          }}
+        <input
+          type="url"
+          placeholder="https://hh.ru/vacancy/..."
+          value={vacancyUrl}
+          onChange={(e) => setVacancyUrl(e.target.value)}
           disabled={loading}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
         />
-
-        {vacancyTab === 'url' && (
-          <input
-            type="url"
-            placeholder="https://hh.ru/vacancy/..."
-            value={vacancyUrl}
-            onChange={(e) => setVacancyUrl(e.target.value)}
-            disabled={loading}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-          />
-        )}
-
-        {vacancyTab === 'text' && vacancyMode === 'edit' && (
-          <Textarea
-            placeholder="Вставьте текст вакансии..."
-            value={vacancyText}
-            onChange={(e) => setVacancyText(e.target.value)}
-            onBlur={() => {
-              if (vacancyText.trim().length >= MIN_CHARS_TO_COLLAPSE) setVacancyMode('preview')
-            }}
-            rows={8}
-            disabled={loading}
-            className="resize-none text-sm leading-relaxed"
-          />
-        )}
-        {vacancyTab === 'text' && vacancyMode === 'preview' && (
-          <TextContentCard
-            label="Текст вакансии"
-            text={vacancyText}
-            disabled={loading}
-            onEdit={() => setVacancyMode('edit')}
-          />
+        {vacancyUrl.trim() && (
+          <a
+            href={vacancyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors self-start"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Открыть вакансию
+          </a>
         )}
       </div>
 
