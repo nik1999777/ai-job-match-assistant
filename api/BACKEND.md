@@ -23,7 +23,8 @@ api/
 │   │                      POST /api/auth/login    → {email, password} → JWT
 │   │                      Ответ: {access_token, token_type, user_id, email, role}
 │   ├── analyze.py       ← POST /api/analyze — SSE стриминг (1 резюме × 1 вакансия)
-│   │                      принимает: resume (текст) + vacancy/vacancy_url + mode
+│   │                      принимает: resume (текст) + resume_file_id (UUID) + vacancy/vacancy_url + mode
+│   │                      сохраняет resume_file_id и vacancy_url в Analysis (для скачивания из истории)
 │   │                      user_id из JWT → сохраняется в Session.user_id
 │   ├── seek.py          ← POST /api/seek — SSE поиск вакансий по резюме
 │   │                      flow: parse resume → Playwright search → enrich via API
@@ -32,11 +33,18 @@ api/
 │   │                      _LLM_SEM(3): параллельные LLM-вызовы (TPM лимит Groq)
 │   ├── history.py       ← GET  /api/history — список анализов (paginated, mode filter, JWT required)
 │   │                      GET|DELETE /api/analyses/{id} (JWT required)
+│   │                      GET|DELETE /api/analyses/{id} (JWT required)
+│   │                      AnalysisDetail включает: resume_file_id, vacancy_url (новые поля)
 │   │                      GET  /api/batch-history — история скринингов (JWT required)
 │   │                      GET|DELETE /api/batch-history/{id} (JWT required)
 │   │                      GET  /api/seek-history — история поисков (JWT required)
 │   │                      GET|DELETE /api/seek-history/{id} (JWT required)
 │   ├── parse_resume.py  ← POST /api/parse-resume — PDF → текст (PyMuPDF)
+│   │                      сохраняет оригинальный PDF в uploads/resumes/{uuid}.pdf
+│   │                      возвращает {text, file_id} — file_id нужен для скачивания из истории
+│   ├── resumes.py       ← GET /api/resumes/{file_id} — скачать оригинальный PDF резюме (JWT required)
+│   │                      ownership check: Analysis.resume_file_id + Session.user_id → 404 если чужой
+│   │                      FileResponse(uploads/resumes/{uuid}.pdf, media_type="application/pdf")
 │   ├── fetch_vacancy.py ← POST /api/fetch-vacancy — hh.ru URL → текст вакансии
 │   │                      официальный API + Playwright fallback
 │   ├── batch.py         ← POST /api/batch — пакетный анализ (mode=hr, макс 20)

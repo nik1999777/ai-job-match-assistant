@@ -41,14 +41,16 @@ src/
 │   │                             onSuccess → authStore.login(token, userId, email, role)
 │   ├── useAnalyze.ts          ← useMutation (TanStack Query) + callbacks в analysisStore
 │   ├── useUploadResume.ts     ← обёртка над orval-хуком для PDF upload
+│   │                             callback(text, fileId | null) — текст + UUID файла на диске
+│   │                             file_id передаётся в /api/analyze → сохраняется в Analysis → скачивается из истории
 │   ├── useBatchAnalyze.ts     ← хук для POST /api/batch (HR режим, шлёт Authorization header)
 │   ├── useSeekVacancies.ts   ← SSE хук для POST /api/seek (шлёт Authorization header)
 │   └── useHistory.ts         ← хуки для всех типов истории:
 │                                 useHistory(page, mode?) — анализы с фильтром по режиму
 │                                 useBatchHistory/useBatchDetail/useDeleteBatchSession
 │                                 useSeekHistory/useSeekDetail/useDeleteSeekSession
-│                                 читает поток событий: resume_parsed → search_done
-│                                 → result (×N) → done
+│                                 AnalysisDetail.resume_file_id — UUID оригинального PDF (для скачивания)
+│                                 AnalysisDetail.vacancy_url — URL вакансии hh.ru (для ссылки в истории)
 │
 ├── components/
 │   ├── ui/                    ← shadcn компоненты
@@ -58,6 +60,11 @@ src/
 │   │                               hr     → [Оценка кандидата] [Скрининг резюме]
 │   │                             user dropdown: аватар + email + История + Sign out
 │   │                             История — в меню (Vercel/Linear pattern), не в основной nav
+│   ├── PdfFileCard.tsx        ← карточка загруженного PDF: иконка + имя файла (ссылка) + ✓ + "Изменить"
+│   │                             без предпросмотра текста — PDF кликабелен для просмотра
+│   ├── TextContentCard.tsx    ← карточка загруженного/введённого текста: иконка + метка + кол-во симв. + ✓
+│   │                             опциональный onEdit (карандаш-иконка) → возврат к вводу
+│   │                             используется в BatchForm после fetch вакансии
 │   ├── confirm-dialog.tsx     ← модальное окно подтверждения удаления
 │   ├── PipelineProgress.tsx   ← прогресс узлов (parse → gap → advise)
 │   ├── MatchScore.tsx         ← процент совпадения + progress bar
@@ -65,14 +72,20 @@ src/
 │   └── PipelineInspector.tsx  ← коллапс-блок: raw inputs + узлы + LLM промпт
 │
 ├── widgets/
-│   ├── AnalyzeForm.tsx        ← форма: резюме (Текст / PDF) + вакансия (URL / Текст)
-│   │                             PDF: после загрузки имя файла — кликабельная ссылка
+│   ├── AnalyzeForm.tsx        ← форма: резюме (PDF-only дропзона) + вакансия (URL input)
+│   │                             Резюме: дропзона → upload → PdfFileCard с "Изменить"
+│   │                             Вакансия: URL input + "Открыть вакансию ↗" ссылка под полем
+│   │                             Нет вкладок "Текст/PDF" или "URL/Текст" — только нужные input'ы
+│   │                             resume_file_id передаётся в POST /api/analyze (для скачивания из истории)
 │   ├── AnalysisResult.tsx     ← результат анализа, читает analysisStore
-│   ├── BatchForm.tsx          ← HR форма: вакансия + multi-PDF upload (только форма, без результатов)
+│   ├── BatchForm.tsx          ← HR форма: вакансия (URL auto-fetch on blur) + multi-PDF upload
+│   │                             вакансия: URL → onBlur → fetch /api/fetch-vacancy → TextContentCard
+│   │                             нет кнопки "Загрузить" — fetch запускается автоматически при уходе с поля
+│   │                             резюме: drag & drop (multiple PDF), каждый → clickable link + статус
 │   │                             получает onAnalyze/onReset/loading/done как props (state поднят в HRBatchPage)
 │   ├── CandidateTable.tsx     ← таблица кандидатов: rank, score, decision, навыки
-│   ├── SeekForm.tsx           ← форма поиска: резюме (Текст / PDF) + фильтры
-│   │                             PDF: после загрузки имя файла — кликабельная ссылка
+│   ├── SeekForm.tsx           ← форма поиска: резюме (PDF-only дропзона) + фильтры
+│   │                             Резюме: дропзона → PdfFileCard (нет вкладки "Текст")
 │   │                             job_title, area (Москва/СПб/Россия),
 │   │                             experience, salary_from, remote, count (5/10/15/20)
 │   └── VacancyResultList.tsx  ← карточки вакансий появляются по мере анализа
@@ -92,9 +105,14 @@ src/
 │   │                             hr:     "Оценка кандидата" | "Скрининг резюме"
 │   │                             удаление с ConfirmDialog (модальное подтверждение)
 │   ├── AnalysisDetailPage.tsx ← детальный просмотр одного анализа
-│   │                             ScoreRing, DecisionBadge, навыки, LLM advice, raw texts
+│   │                             вверху хедера: "↗ Открыть вакансию" + "⬇ Скачать резюме" (PDF)
+│   │                             ScoreRing + badges + дата; навыки; LLM совет
+│   │                             нет сырых текстовых блоков — вместо них ссылки
+│   │                             "Скачать резюме": fetch GET /api/resumes/{file_id} + Bearer → blob → resume.pdf
+│   │                             кнопка скачивания скрыта если resume_file_id == null (старые записи)
 │   ├── BatchDetailPage.tsx    ← детальный просмотр скрининга: ранжированный список кандидатов
 │   │                             rank, decision, score, found/missing skills, explanation
+│   │                             нет блока с текстом вакансии (убран)
 │   └── SeekDetailPage.tsx     ← детальный просмотр поиска: карточки вакансий
 │                                 rank, title, company, salary, score, decision, skills
 │
@@ -293,37 +311,43 @@ HR пользователи видят: `[Оценка кандидата] [Ск
 ```
 ┌──────────────────────────┬──────────────────────────────────┐
 │  Резюме                  │  ○ Parsing resume & vacancy      │
-│  [Текст][PDF]            │  ○ Analyzing skill gaps          │
-│  Вакансия                │  ⏳ Generating advice...         │
-│  [URL hh.ru][Текст]      │  Match: 40%  [python✓] [rag✗]   │
-│  [Анализировать →]       │  ## Overall Assessment...        │
-│                          │  ▶ Pipeline Inspector            │
+│  [ ↑ drag & drop PDF ]   │  ○ Analyzing skill gaps          │
+│  📄 resume.pdf ✓  [✎]    │  ⏳ Generating advice...         │
+│                          │  Match: 40%  [python✓] [rag✗]   │
+│  Вакансия                │  ## Overall Assessment...        │
+│  https://hh.ru/vacancy/… │  ▶ Pipeline Inspector            │
+│  ↗ Открыть вакансию      │                                  │
+│  [Анализировать →]       │                                  │
 └──────────────────────────┴──────────────────────────────────┘
 ```
 
 **Поиск работы** (JobSeekPage):
 ```
 ┌──────────────────────────┬──────────────────────────────────┐
-│  Резюме [Текст][PDF]     │  ● Анализируем резюме…           │
-│  Должность: Python Dev   │  Скиллы: FastAPI PostgreSQL ...  │
-│  Город: [Москва ▼]       │                                  │
-│  Опыт:  [3-6 лет ▼]      │  #1 Python Developer · Домклик  │
-│  З/п от: 150000          │      [████████░░] 75% Сильный    │
-│  [x] Удалённо            │      ✓ FastAPI  ✗ Kafka          │
-│  Кол-во: [10 ▼]          │      [Показать анализ]           │
-│                          │                                  │
-│  [Найти вакансии →]      │  #2 Backend Engineer · Яндекс   │
-│                          │      [██████░░░░] 60% Стоит...   │
+│  Резюме                  │  ● Анализируем резюме…           │
+│  [ ↑ drag & drop PDF ]   │  Скиллы: FastAPI PostgreSQL ...  │
+│  📄 resume.pdf ✓  [✎]    │                                  │
+│  Должность: Python Dev   │  #1 Python Developer · Домклик  │
+│  Город: [Москва ▼]       │      [████████░░] 75% Сильный    │
+│  Опыт:  [3-6 лет ▼]      │      ✓ FastAPI  ✗ Kafka          │
+│  З/п от: 150000          │      [Показать анализ]           │
+│  [x] Удалённо            │                                  │
+│  Кол-во: [10 ▼]          │  #2 Backend Engineer · Яндекс   │
+│  [Найти вакансии →]      │      [██████░░░░] 60% Стоит...   │
 └──────────────────────────┴──────────────────────────────────┘
 ```
 
 **HR batch** (HRBatchPage):
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Вакансия [URL][Текст]   Резюме PDF (drag & drop, ×N)       │
-│  [Загрузить]             candidate1.pdf ✓  candidate2.pdf ✓ │
-│                          (имена файлов — кликабельные ссылки)│
-│  [Анализировать 3 кандидатов]                               │
+│  Вакансия                                                   │
+│  https://hh.ru/vacancy/…  (уходит с поля → auto-fetch)     │
+│  📄 Вакансия загружена ✓ [✎]   1234 симв.                   │
+│                                                             │
+│  Резюме кандидатов (PDF)                                    │
+│  [ ↑ drag & drop, несколько PDF ]                           │
+│  ✓ candidate1.pdf   ✓ candidate2.pdf                        │
+│  [Анализировать 2 кандидатов]                               │
 │  ────────────────────────────────────────────────────────── │
 │  #  Имя              Score  Decision     Навыки             │
 │  1  candidate2.pdf   85%    [Hire]       Python FastAPI ...  │
@@ -340,15 +364,14 @@ HR пользователи видят: `[Оценка кандидата] [Ск
 
   ↓ клик на карточку
 
-  ML Engineer · Яндекс
-  ●●●●○ 40%  middle  [Borderline]
+  ↗ Открыть вакансию   ⬇ Скачать резюме        ← ссылки/кнопки вверху, нет сырых текстов
+  ●●●●○ 40%  middle  [Borderline]  conf 87%
+  2026-05-21
 
   Совпадающие навыки: Python FastAPI
   Пропущенные навыки: Kafka Kubernetes
 
   ## Overall Assessment...
-  ▼ Резюме (исходный текст)
-  ▼ Вакансия (исходный текст)
 ```
 
 ---
