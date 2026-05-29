@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, Upload, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TextContentCard } from '../components/TextContentCard'
+// Button used below for submit/reset
 import { parseResumeApiParseResumePost } from '../api/generated'
 import type { BatchRequest } from '../api/generated'
 
@@ -113,25 +114,20 @@ export function BatchForm({ loading, done, onAnalyze, onReset }: Props) {
         <label className="text-sm font-medium">Вакансия</label>
 
         {!vacancyText && (
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-1.5">
+            <div className="relative">
               <input
                 type="url"
                 placeholder="https://hh.ru/vacancy/..."
                 value={vacancyUrl}
                 onChange={(e) => { setVacancyUrl(e.target.value); setFetchError('') }}
+                onBlur={handleFetchVacancy}
                 disabled={loading || fetchingVacancy}
-                className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 pr-8"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleFetchVacancy}
-                disabled={!vacancyUrl.trim() || fetchingVacancy || loading}
-              >
-                {fetchingVacancy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                {fetchingVacancy ? 'Загружаем...' : 'Загрузить'}
-              </Button>
+              {fetchingVacancy && (
+                <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </div>
             {fetchError && <p className="text-xs text-destructive">{fetchError}</p>}
           </div>
