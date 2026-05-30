@@ -28,3 +28,6 @@ frontend/dist/
 mlruns/
 mlflow.db
 uploads/
+
+# ML model weights (large binaries)
+ml/models/
