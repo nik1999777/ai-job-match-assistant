@@ -35,6 +35,36 @@ from eval.metrics import (
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("eval")
 
+
+def _advice_to_text(advice: object) -> str:
+    """Convert structured advice dict (SeekerAdvice/HRAdvice model_dump) to a plain string."""
+    if isinstance(advice, str):
+        return advice
+    if not isinstance(advice, dict):
+        return ""
+    parts: list[str] = []
+    # SeekerAdvice fields
+    if "overall" in advice:
+        parts.append(advice["overall"])
+    if "top_skills" in advice:
+        for tip in advice["top_skills"]:
+            if isinstance(tip, dict):
+                parts.append(f"{tip.get('skill', '')}: {tip.get('action', '')}")
+    if "resume_tips" in advice:
+        parts.extend(advice["resume_tips"])
+    if "strategy" in advice:
+        parts.append(advice["strategy"])
+    # HRAdvice fields
+    if "candidate_fit" in advice:
+        parts.append(advice["candidate_fit"])
+    if "strengths" in advice:
+        parts.extend(advice["strengths"])
+    if "gaps" in advice:
+        parts.extend(advice["gaps"])
+    if "decision_reason" in advice:
+        parts.append(advice["decision_reason"])
+    return " ".join(p for p in parts if p)
+
 RESULTS_DIR = Path(__file__).parent / "results"
 
 
@@ -55,7 +85,7 @@ async def evaluate_one(case: EvalCase, run_judge: bool) -> dict:
     predicted_score = state.get("match_score", 0.0)
     predicted_missing = state.get("skills_missing", [])
     predicted_seniority = state.get("seniority", "unknown")
-    advice = state.get("llm_response", "")
+    advice = _advice_to_text(state.get("llm_response", ""))
 
     recall = skill_recall(predicted_missing, case.expected_missing_skills)
     precision = skill_precision(predicted_missing, case.expected_missing_skills)
