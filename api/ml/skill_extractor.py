@@ -1,6 +1,12 @@
 from functools import cache
 
 NER_MODEL = "dslim/bert-base-NER"
+_CYRILLIC = frozenset("абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ")
+
+
+def _is_cyrillic_only(word: str) -> bool:
+    """True if word consists entirely of Cyrillic letters — company names, not tech skills."""
+    return bool(word) and all(c in _CYRILLIC for c in word)
 # BERT max is 512 tokens; ~1800 chars ≈ 450 tokens — safe upper bound per chunk
 MAX_CHARS = 1800
 
@@ -19,8 +25,9 @@ def _extract_chunk(ner, text: str, seen: set[str], skills: list[str]) -> None:
         # Skip BERT subword artifacts (## prefix) that leak on out-of-vocab languages
         if (
             e["entity_group"] in ("MISC", "ORG")
-            and len(word) > 1
+            and len(word) >= 3                    # убирает "NL", "LL" — subword-остатки BERT
             and not word.startswith("##")
+            and not _is_cyrillic_only(word)       # убирает "СБЕР", "СБЕРКО" — названия компаний
         ):
             low = word.lower()
             if low not in seen:

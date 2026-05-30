@@ -18,36 +18,6 @@ from qdrant_client import AsyncQdrantClient
 
 _skill_extractor = SkillExtractor()
 
-_SKILL_KEYWORDS = {
-    # ML / AI / Data Science
-    "python", "pytorch", "tensorflow", "keras", "langchain", "langgraph",
-    "openai", "ollama", "llm", "gpt", "claude", "huggingface",
-    "qdrant", "faiss", "milvus", "pgvector", "elasticsearch",
-    "peft", "lora", "qlora", "transformers", "bert", "rag", "fine-tuning",
-    "scikit-learn", "xgboost", "catboost", "lightgbm",
-    "pandas", "numpy", "scipy",
-    "mlflow", "wandb", "dvc", "vllm", "deepspeed",
-    # Backend
-    "fastapi", "flask", "django", "spring", "express", "nestjs",
-    "rails", "laravel", "gin", "grpc", "graphql", "celery", "sqlalchemy",
-    # Frontend
-    "react", "vue", "angular", "typescript", "javascript", "nextjs",
-    "redux", "mobx", "webpack", "vite", "tailwind",
-    # Languages
-    "java", "go", "rust", "c++", "c#", "php", "kotlin", "ruby",
-    "scala", "swift", "bash",
-    # Infrastructure / DevOps / Cloud
-    "docker", "kubernetes", "terraform", "ansible", "nginx", "linux",
-    "aws", "gcp", "azure", "helm", "gitlab", "jenkins", "ci/cd",
-    # Databases / Messaging / Streaming
-    "postgresql", "mysql", "mongodb", "redis", "clickhouse", "cassandra",
-    "neo4j", "rabbitmq", "kafka", "spark", "airflow", "flink",
-    # Mobile
-    "ios", "android", "flutter", "react native",
-    # General
-    "git", "agile", "scrum", "microservices", "sql",
-}
-
 DEFAULT_QUERIES = [
     # AI / ML
     "ML Engineer",
@@ -111,11 +81,6 @@ _USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-
-
-def _extract_skills(text: str) -> list[str]:
-    text_lower = text.lower()
-    return sorted(kw for kw in _SKILL_KEYWORDS if kw in text_lower)
 
 
 def _salary_str(data: dict) -> str | None:
@@ -225,13 +190,11 @@ async def run(queries: list[str], pages: int, area: int, pause: float, debug: bo
                         salary = _salary_str(data)
                         # Tier 1: official hh.ru tags (HR-normalized)
                         # Tier 2: BERT NER on text (catches skills not in tags)
-                        # Tier 3: regex fallback (fast, catches what NER misses)
                         api_skills = [s["name"] for s in data.get("key_skills", [])]
                         ner_skills = _skill_extractor.extract(text)
-                        regex_skills = _extract_skills(text)
                         seen: set[str] = set()
                         skills: list[str] = []
-                        for s in api_skills + ner_skills + regex_skills:
+                        for s in api_skills + ner_skills:
                             key = s.lower()
                             if key not in seen:
                                 seen.add(key)
