@@ -110,11 +110,11 @@ python -m ml.scripts.generate_dataset --task stats
 
 | Файл | Статус |
 |---|---|
-| `api/ml/skill_extractor.py` | ✅ dslim/bert-base-NER, lazy @cache, ## subword filter |
+| `api/ml/skill_extractor.py` | ✅ auto-loads fine-tuned NER (F1=0.97), fallback dslim/bert-base-NER |
 | `api/ml/skill_matcher.py` | ✅ exact norm + BAAI/bge cosine, configurable threshold |
-| `api/ml/seniority_clf.py` | ✅ zero-shot xlm-roberta-large-xnli (accuracy 42% → цель LoRA: 80%+) |
+| `api/ml/seniority_clf.py` | ✅ auto-loads fine-tuned DistilBERT (100%), fallback zero-shot xlm-roberta |
 | `ml/data/seniority_dataset.jsonl` | ✅ 90 seed примеров (30×junior/middle/senior), RU+EN, 17 доменов |
 | `ml/data/ner_dataset.jsonl` | ✅ 63 BIO-tagged примера |
 | `ml/scripts/generate_dataset.py` | ✅ LLM-генерация через GPT-4o-mini, дедупликация, валидация |
-| `ml/train_ner.py` | 📅 следующий блок |
-| `ml/train_seniority.py` | 📅 следующий блок |
+| `ml/train_ner.py` | ✅ dslim/bert-base-NER fine-tuned, precision/recall/F1=0.97, aggregation_strategy=first |
+| `ml/train_seniority.py` | ✅ DistilBERT-multilingual + LoRA rank=16, accuracy=100% (42% zero-shot → 100%) |
