@@ -53,7 +53,7 @@ function RawText({ label, text }: { label: string; text: string }) {
           onClick={() => setExpanded(e => !e)}
           className="text-primary hover:underline font-sans text-xs"
         >
-          {expanded ? 'Show less' : `Show all (${text.length} chars)`}
+          {expanded ? 'Свернуть' : `Показать всё (${text.length} симв.)`}
         </button>
       )}
     </div>
@@ -91,13 +91,13 @@ export function PipelineInspector({ parsedData, gapData, rawResume, rawVacancy }
           ? <ChevronDown className="h-3.5 w-3.5" />
           : <ChevronRight className="h-3.5 w-3.5" />
         }
-        Pipeline Inspector
+        Инспектор пайплайна
       </button>
 
       {open && (
         <div className="flex flex-col gap-2">
           {(rawResume || rawVacancy) && (
-            <Section title="Raw Inputs → Pipeline">
+            <Section title="Входные данные → Пайплайн">
               {rawResume && <RawText label="RESUME" text={rawResume} />}
               {rawResume && rawVacancy && <Separator />}
               {rawVacancy && <RawText label="VACANCY" text={rawVacancy} />}

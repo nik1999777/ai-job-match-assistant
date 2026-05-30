@@ -34,7 +34,7 @@ api/
 │   ├── history.py       ← GET  /api/history — список анализов (paginated, mode filter, JWT required)
 │   │                      GET|DELETE /api/analyses/{id} (JWT required)
 │   │                      GET|DELETE /api/analyses/{id} (JWT required)
-│   │                      AnalysisDetail включает: resume_file_id, vacancy_url (новые поля)
+│   │                      AnalysisDetail включает: resume_file_id, vacancy_url, similar_vacancies[]
 │   │                      GET  /api/batch-history — история скринингов (JWT required)
 │   │                      GET|DELETE /api/batch-history/{id} (JWT required)
 │   │                      GET  /api/seek-history — история поисков (JWT required)
@@ -64,7 +64,10 @@ api/
 │       ├── gap.py     ← узел 2: ML навыки + seniority penalty + RAG + auto-index в Qdrant
 │       │                _seniority_penalty(candidate, vacancy_hint): 10%/уровень, max 20%
 │       │                match_score = skill_score * (1 - penalty); "not specified" → 0%
-│       └── advise.py  ← узел 3: LLM → совет по 4 секциям
+│       └── advise.py  ← узел 3: structured output → SeekerAdvice | HRAdvice Pydantic
+│                          with_structured_output(SeekerAdvice|HRAdvice) → model_dump() → JSON
+│                          SeekerAdvice: overall, top_skills (SkillTip[]), resume_tips[], strategy
+│                          HRAdvice: candidate_fit, strengths[], gaps[], decision, decision_reason
 │
 ├── llm/
 │   ├── provider.py    ← фабрика: ChatGroq (default, dev/free) | ChatOpenAI (prod) | ChatOllama (local)
@@ -91,7 +94,9 @@ api/
 ├── rag/
 │   ├── embeddings.py  ← синглтоны моделей (dense BAAI + sparse BM42)
 │   ├── indexer.py     ← записать вакансию в Qdrant (upsert)
+│   │                    payload: vacancy_id, title, company, skills[], text_preview, url, salary_str
 │   └── retriever.py   ← hybrid search RRF, возвращает top-k вакансий
+│                          поля: vacancy_id, title, company, skills, score, url, salary_str
 │
 ├── clients/
 │   ├── browser_pool.py      ← shared Playwright browser (singleton на весь lifecycle сервера)

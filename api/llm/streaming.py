@@ -41,8 +41,9 @@ async def event_stream(
     mode: str = "seeker",
     user_id: str | None = None,
     session_id: str | None = None,
+    vacancy_url: str | None = None,
 ) -> AsyncGenerator[tuple[bytes, dict[str, Any]], None]:
-    initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy, "mode": mode}
+    initial_state: dict[str, Any] = {"resume": resume, "vacancy": vacancy, "mode": mode, "vacancy_url": vacancy_url}
     final_state: dict[str, Any] = {}
 
     _NODE_NAMES = {"parse_node", "gap_node", "advise_node"}
@@ -89,12 +90,6 @@ async def event_stream(
             data = json.dumps({"event": "node_start", "node": name})
             yield _sse(data), final_state
 
-        elif kind == "on_chat_model_stream" and _current_node == "advise_node":
-            chunk = event["data"].get("chunk")
-            if chunk and getattr(chunk, "content", None):
-                data = json.dumps({"event": "token", "content": chunk.content})
-                yield _sse(data), final_state
-
         elif kind == "on_chain_end" and name in _NODE_NAMES:
             _current_node = None
             output = event["data"].get("output", {})
@@ -134,6 +129,12 @@ async def event_stream(
                     "similar_vacancies": _serialisable_list(output.get("similar_vacancies", [])),
                 })
                 yield _sse(payload), final_state
+
+            elif name == "advise_node":
+                advice = output.get("llm_response")
+                if isinstance(advice, dict):
+                    payload = json.dumps({"event": "advice_data", "data": advice})
+                    yield _sse(payload), final_state
 
             data = json.dumps({"event": "node_done", "node": name})
             yield _sse(data), final_state

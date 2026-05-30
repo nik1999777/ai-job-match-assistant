@@ -35,6 +35,7 @@ export interface AnalysisDetail {
   skills_found: string[]
   skills_missing: string[]
   llm_response: string | null
+  similar_vacancies: Array<{ title?: string; company?: string; skills?: string[]; score?: number; url?: string | null; salary_str?: string | null }>
   decision: string | null
 }
 

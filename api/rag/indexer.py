@@ -35,6 +35,9 @@ async def index_vacancy(
     title: str,
     text: str,
     skills: list[str],
+    url: str | None = None,
+    company: str = "",
+    salary_str: str | None = None,
 ) -> None:
     dense_vec = list(get_dense_embedder().embed([text]))[0].tolist()
     sparse_result = list(get_sparse_embedder().embed([text]))[0]
@@ -59,8 +62,11 @@ async def index_vacancy(
                 payload={
                     "vacancy_id": vacancy_id,
                     "title": title,
+                    "company": company,
                     "skills": skills,
                     "text_preview": text[:500],
+                    "url": url,
+                    "salary_str": salary_str,
                 },
             )
         ],

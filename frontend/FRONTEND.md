@@ -69,7 +69,13 @@ src/
 │   ├── PipelineProgress.tsx   ← прогресс узлов (parse → gap → advise)
 │   ├── MatchScore.tsx         ← процент совпадения + progress bar
 │   ├── SkillBadges.tsx        ← зелёные (found) и красные (missing) badges
-│   └── PipelineInspector.tsx  ← коллапс-блок: raw inputs + узлы + LLM промпт
+│   ├── AdviceCard.tsx         ← рендер структурированного совета (SeekerAdvice | HRAdvice)
+│   │                             isSeekerAdvice() type guard; AdviceSkeleton пока advise_node работает
+│   │                             SeekerView: overall → top_skills badges → resume_tips → strategy
+│   │                             HRView: candidate_fit → strengths/gaps (2 col) → decision chip
+│   └── SimilarVacancies.tsx   ← RAG top-3 похожих вакансий + skill benchmark
+│                                  список: title + company + salary + ↗ ссылка + score%
+│                                  benchmark: bar chart частоты навыков; красный = missing (✗)
 │
 ├── widgets/
 │   ├── AnalyzeForm.tsx        ← форма: резюме (PDF-only дропзона) + вакансия (URL input)
@@ -78,6 +84,8 @@ src/
 │   │                             Нет вкладок "Текст/PDF" или "URL/Текст" — только нужные input'ы
 │   │                             resume_file_id передаётся в POST /api/analyze (для скачивания из истории)
 │   ├── AnalysisResult.tsx     ← результат анализа, читает analysisStore
+│   │                             SimilarVacancies блок (между SkillBadges и AdviceCard)
+│   │                             AdviceSkeleton пока currentNode === 'advise_node'
 │   ├── BatchForm.tsx          ← HR форма: вакансия (URL auto-fetch on blur) + multi-PDF upload
 │   │                             вакансия: URL → onBlur → fetch /api/fetch-vacancy → TextContentCard
 │   │                             нет кнопки "Загрузить" — fetch запускается автоматически при уходе с поля
@@ -106,8 +114,8 @@ src/
 │   │                             удаление с ConfirmDialog (модальное подтверждение)
 │   ├── AnalysisDetailPage.tsx ← детальный просмотр одного анализа
 │   │                             вверху хедера: "↗ Открыть вакансию" + "⬇ Скачать резюме" (PDF)
-│   │                             ScoreRing + badges + дата; навыки; LLM совет
-│   │                             нет сырых текстовых блоков — вместо них ссылки
+│   │                             ScoreRing + badges + дата; навыки; SimilarVacancies; AdviceCard
+│   │                             parseAdvice(): JSON → AdviceCard, fallback → plain text (старые записи)
 │   │                             "Скачать резюме": fetch GET /api/resumes/{file_id} + Bearer → blob → resume.pdf
 │   │                             кнопка скачивания скрыта если resume_file_id == null (старые записи)
 │   ├── BatchDetailPage.tsx    ← детальный просмотр скрининга: ранжированный список кандидатов

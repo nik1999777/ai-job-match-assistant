@@ -3,6 +3,22 @@ import { useAnalysisDetail } from '../hooks/useHistory'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { getToken } from '../store/authStore'
+import { AdviceCard } from '../components/AdviceCard'
+import { SimilarVacancies } from '../components/SimilarVacancies'
+import type { AdviceData } from '../store/analysisStore'
+
+function parseAdvice(llmResponse: string | null | undefined): AdviceData | null {
+  if (!llmResponse) return null
+  try {
+    const parsed = JSON.parse(llmResponse)
+    if (parsed && typeof parsed === 'object' && ('overall' in parsed || 'candidate_fit' in parsed)) {
+      return parsed as AdviceData
+    }
+  } catch {
+    // old plain-text format
+  }
+  return null
+}
 
 interface Props {
   analysisId: number
@@ -28,9 +44,14 @@ function DecisionBadge({ decision }: { decision: string | null }) {
     no_hire: 'bg-red-100 text-red-800 border-red-200',
     borderline: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   }
+  const labels: Record<string, string> = {
+    hire: 'Нанять',
+    no_hire: 'Отказ',
+    borderline: 'На рассмотрении',
+  }
   return (
     <span className={`px-2.5 py-1 rounded-md text-sm font-medium border ${cls[decision] ?? 'bg-muted'}`}>
-      {decision.replace('_', ' ')}
+      {labels[decision] ?? decision}
     </span>
   )
 }
@@ -138,7 +159,7 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
             {/* ── Skills ── */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border rounded-xl p-4 space-y-3">
-                <p className="text-sm font-medium">Matched skills</p>
+                <p className="text-sm font-medium">Совпадающие навыки</p>
                 {data.skills_found.length === 0
                   ? <p className="text-xs text-muted-foreground">—</p>
                   : (
@@ -150,7 +171,7 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
                   )}
               </div>
               <div className="border rounded-xl p-4 space-y-3">
-                <p className="text-sm font-medium">Missing skills</p>
+                <p className="text-sm font-medium">Пропущенные навыки</p>
                 {data.skills_missing.length === 0
                   ? <p className="text-xs text-muted-foreground">—</p>
                   : (
@@ -163,17 +184,30 @@ export function AnalysisDetailPage({ analysisId, onBack }: Props) {
               </div>
             </div>
 
-            {/* ── LLM advice ── */}
-            {data.llm_response && (
-              <div className="border rounded-xl p-6 space-y-3">
-                <p className="text-sm font-medium">Рекомендация</p>
-                <div className="prose prose-sm max-w-none text-foreground">
-                  {data.llm_response.split('\n').map((line, i) => (
-                    <p key={i} className="text-sm leading-relaxed text-muted-foreground">{line}</p>
-                  ))}
-                </div>
-              </div>
+            {/* ── Similar vacancies ── */}
+            {data.similar_vacancies && data.similar_vacancies.length > 0 && (
+              <SimilarVacancies
+                vacancies={data.similar_vacancies}
+                missingSkills={data.skills_missing}
+              />
             )}
+
+            {/* ── LLM advice ── */}
+            {data.llm_response && (() => {
+              const advice = parseAdvice(data.llm_response)
+              if (advice) return <AdviceCard data={advice} />
+              // fallback: old plain-text records
+              return (
+                <div className="border rounded-xl p-6 space-y-3">
+                  <p className="text-sm font-medium">Рекомендация</p>
+                  <div className="prose prose-sm max-w-none text-foreground">
+                    {data.llm_response.split('\n').map((line, i) => (
+                      <p key={i} className="text-sm leading-relaxed text-muted-foreground">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </>
         )}
       </div>

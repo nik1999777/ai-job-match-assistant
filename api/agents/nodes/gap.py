@@ -32,11 +32,11 @@ def _seniority_penalty(candidate: str, vacancy_hint: str) -> float:
     return min(gap * 0.10, 0.20)
 
 
-async def _auto_index_vacancy(text: str, title: str, skills: list[str]) -> None:
+async def _auto_index_vacancy(text: str, title: str, skills: list[str], url: str | None = None) -> None:
     try:
         vacancy_id = hashlib.md5(text.encode()).hexdigest()[:12]
         client = AsyncQdrantClient(url=settings.qdrant_url)
-        await index_vacancy(client, vacancy_id, title, text, skills)
+        await index_vacancy(client, vacancy_id, title, text, skills, url=url)
     except Exception as exc:
         logger.debug("auto-index skipped: %s", exc)
 
@@ -59,10 +59,12 @@ async def gap_node(state: dict[str, Any]) -> dict[str, Any]:
     penalty = _seniority_penalty(seniority, vacancy_hint)
     match_score = round(raw_score * (1 - penalty), 3)
 
-    similar = await retrieve_similar_vacancies(state["vacancy"], top_k=3)
+    vacancy_summary = parsed.get("vacancy_summary", "")
+    qdrant_query = f"{vacancy_summary} {' '.join(vacancy_skills)}".strip() or state["vacancy"]
+    similar = await retrieve_similar_vacancies(qdrant_query, top_k=3)
 
-    title = parsed.get("vacancy_summary", "")[:120] or state["vacancy"].splitlines()[0][:120]
-    asyncio.create_task(_auto_index_vacancy(state["vacancy"], title, vacancy_skills))
+    title = vacancy_summary[:120] or state["vacancy"].splitlines()[0][:120]
+    asyncio.create_task(_auto_index_vacancy(state["vacancy"], title, vacancy_skills, url=state.get("vacancy_url")))
 
     return {
         **state,

@@ -65,6 +65,7 @@ class Analysis(Base):
     skills_missing: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     llm_response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    similar_vacancies: Mapped[str | None] = mapped_column(Text, nullable=True)
     decision: Mapped[HiringDecision | None] = mapped_column(
         SAEnum(HiringDecision), nullable=True
     )

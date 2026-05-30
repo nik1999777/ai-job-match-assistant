@@ -45,6 +45,7 @@ class AnalysisDetail(BaseModel):
     skills_found: list[str]
     skills_missing: list[str]
     llm_response: str | None
+    similar_vacancies: list[dict] = []
     decision: str | None
 
 
@@ -92,6 +93,16 @@ def _parse_skills(raw: str | None) -> list[str]:
         return []
     try:
         return json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+
+
+def _parse_json_list(raw: str | None) -> list[dict]:
+    if not raw:
+        return []
+    try:
+        result = json.loads(raw)
+        return result if isinstance(result, list) else []
     except (ValueError, TypeError):
         return []
 
@@ -184,6 +195,7 @@ async def get_analysis(
         skills_found=_parse_skills(analysis.skills_found),
         skills_missing=_parse_skills(analysis.skills_missing),
         llm_response=analysis.llm_response,
+        similar_vacancies=_parse_json_list(analysis.similar_vacancies),
         decision=analysis.decision.value if analysis.decision else None,
     )
 

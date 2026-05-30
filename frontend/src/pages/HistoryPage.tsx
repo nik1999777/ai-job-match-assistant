@@ -36,9 +36,14 @@ function DecisionBadge({ decision }: { decision: string | null }) {
     no_hire: 'bg-red-100 text-red-800',
     borderline: 'bg-yellow-100 text-yellow-800',
   }
+  const labels: Record<string, string> = {
+    hire: 'Нанять',
+    no_hire: 'Отказ',
+    borderline: 'На рассмотрении',
+  }
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls[decision] ?? 'bg-muted'}`}>
-      {decision.replace('_', ' ')}
+      {labels[decision] ?? decision}
     </span>
   )
 }
@@ -130,13 +135,13 @@ function BatchCard({
 
       <div className="flex items-center gap-3 text-xs">
         <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 font-medium">
-          Hire: {item.hire_count}
+          Нанять: {item.hire_count}
         </span>
         <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 font-medium">
-          Borderline: {item.borderline_count}
+          Рассмотреть: {item.borderline_count}
         </span>
         <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 font-medium">
-          No hire: {item.no_hire_count}
+          Отказ: {item.no_hire_count}
         </span>
       </div>
 

@@ -1,50 +1,110 @@
 #!/usr/bin/env python3
+"""Index hh.ru vacancies into Qdrant.
+
+Search pages: Playwright (API requires OAuth2 for search).
+Individual vacancies: hh.ru official API (salary + key_skills), Playwright fallback.
+"""
 import asyncio
 import argparse
-import re
 import sys
 
 from playwright.async_api import async_playwright, BrowserContext
 
-from api.clients.hh_client import vacancy_to_text, _page_to_vacancy_data, _VACANCY_URL_RE
+from api.clients.hh_client import vacancy_to_text, get_vacancy, _page_to_vacancy_data, _VACANCY_URL_RE
+from api.ml.skill_extractor import SkillExtractor
 from api.rag.indexer import ensure_collection, index_vacancy
 from api.settings import settings
 from qdrant_client import AsyncQdrantClient
 
+_skill_extractor = SkillExtractor()
+
 _SKILL_KEYWORDS = {
-    "python", "pytorch", "tensorflow", "keras", "fastapi", "flask", "django",
-    "langchain", "langgraph", "openai", "ollama", "llm", "gpt", "claude",
+    # ML / AI / Data Science
+    "python", "pytorch", "tensorflow", "keras", "langchain", "langgraph",
+    "openai", "ollama", "llm", "gpt", "claude", "huggingface",
     "qdrant", "faiss", "milvus", "pgvector", "elasticsearch",
     "peft", "lora", "qlora", "transformers", "bert", "rag", "fine-tuning",
-    "scikit-learn", "xgboost", "catboost",
-    "docker", "kubernetes", "kafka", "redis", "postgresql", "clickhouse",
-    "spark", "airflow", "mlflow", "wandb",
-    "java", "go", "rust", "c++", "sql",
+    "scikit-learn", "xgboost", "catboost", "lightgbm",
+    "pandas", "numpy", "scipy",
+    "mlflow", "wandb", "dvc", "vllm", "deepspeed",
+    # Backend
+    "fastapi", "flask", "django", "spring", "express", "nestjs",
+    "rails", "laravel", "gin", "grpc", "graphql", "celery", "sqlalchemy",
+    # Frontend
+    "react", "vue", "angular", "typescript", "javascript", "nextjs",
+    "redux", "mobx", "webpack", "vite", "tailwind",
+    # Languages
+    "java", "go", "rust", "c++", "c#", "php", "kotlin", "ruby",
+    "scala", "swift", "bash",
+    # Infrastructure / DevOps / Cloud
+    "docker", "kubernetes", "terraform", "ansible", "nginx", "linux",
+    "aws", "gcp", "azure", "helm", "gitlab", "jenkins", "ci/cd",
+    # Databases / Messaging / Streaming
+    "postgresql", "mysql", "mongodb", "redis", "clickhouse", "cassandra",
+    "neo4j", "rabbitmq", "kafka", "spark", "airflow", "flink",
+    # Mobile
+    "ios", "android", "flutter", "react native",
+    # General
+    "git", "agile", "scrum", "microservices", "sql",
 }
 
 DEFAULT_QUERIES = [
     # AI / ML
     "ML Engineer",
     "LLM Engineer",
-    "AI разработчик",
+    "AI Engineer",
+    "Machine Learning разработчик",
+    "Data Scientist",
     # Backend
     "Python разработчик",
-    "Backend Developer",
+    "Backend разработчик",
     "Java разработчик",
+    "Go разработчик",
+    "Node.js разработчик",
+    "PHP разработчик",
+    "C# разработчик",
+    "Kotlin разработчик",
+    "Ruby разработчик",
     # Frontend
     "Frontend разработчик",
     "React разработчик",
-    # DevOps / Infra
+    "Vue разработчик",
+    "Angular разработчик",
+    "TypeScript разработчик",
+    # Fullstack
+    "Fullstack разработчик",
+    # Mobile
+    "iOS разработчик",
+    "Android разработчик",
+    "Flutter разработчик",
+    "React Native разработчик",
+    # DevOps / Infra / Cloud
     "DevOps инженер",
     "Site Reliability Engineer",
+    "Cloud Engineer",
     # Data
     "Data Engineer",
     "Data Analyst",
+    "BI аналитик",
+    # QA
+    "QA Engineer",
+    "Автоматизатор тестирования",
+    # Security
+    "Инженер по информационной безопасности",
+    # Embedded / Low-level
+    "Embedded разработчик",
+    "C++ разработчик",
+    # Architecture & Leadership
+    "Solution Architect",
+    "Tech Lead",
+    "Team Lead разработчик",
     # Management
     "Product Manager",
     "Project Manager",
     # Design
     "UX Designer",
+    "UI Designer",
+    "Product Designer",
 ]
 
 _USER_AGENT = (
@@ -58,15 +118,32 @@ def _extract_skills(text: str) -> list[str]:
     return sorted(kw for kw in _SKILL_KEYWORDS if kw in text_lower)
 
 
+def _salary_str(data: dict) -> str | None:
+    salary = data.get("salary")
+    if not salary:
+        return None
+    lo = salary.get("from")
+    hi = salary.get("to")
+    curr = salary.get("currency", "RUR")
+    sym = {"RUR": "₽", "USD": "$", "EUR": "€", "KZT": "₸", "UAH": "₴"}.get(curr, curr)
+    if lo and hi:
+        return f"{lo:,}–{hi:,} {sym}".replace(",", " ")
+    if lo:
+        return f"от {lo:,} {sym}".replace(",", " ")
+    if hi:
+        return f"до {hi:,} {sym}".replace(",", " ")
+    return None
+
+
 async def _search_page(ctx: BrowserContext, query: str, area: int, page_num: int, debug: bool = False) -> list[dict]:
-    """Return list of {id, name} from one search results page."""
+    """Return list of {id, name} from one search results page via Playwright."""
     url = (
         f"https://hh.ru/search/vacancy"
         f"?text={query}&area={area}&items_on_page=100&page={page_num}&no_magic=true"
     )
     page = await ctx.new_page()
-    await page.goto(url, wait_until="networkidle", timeout=60_000)
-    await asyncio.sleep(2)
+    await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+    await asyncio.sleep(3)
 
     if debug:
         screenshot_path = f"/tmp/hh_debug_{page_num}.png"
@@ -74,26 +151,11 @@ async def _search_page(ctx: BrowserContext, query: str, area: int, page_num: int
         print(f"  [debug] screenshot saved: {screenshot_path}")
         title = await page.title()
         print(f"  [debug] page title: {title}")
-        data_qa_values = await page.evaluate("""() => {
-            const els = document.querySelectorAll('a[data-qa]');
-            const values = [...new Set(Array.from(els).map(el => el.getAttribute('data-qa')))];
-            return values.filter(v => v.includes('vacancy') || v.includes('serp') || v.includes('title'));
-        }""")
-        print(f"  [debug] vacancy-related data-qa values: {data_qa_values}")
-        vacancy_links = await page.evaluate("""() => {
-            const els = document.querySelectorAll('a[href*="/vacancy/"]');
-            return Array.from(els).slice(0, 5).map(a => ({
-                href: a.href, qa: a.getAttribute('data-qa'), text: a.textContent.trim().slice(0, 60)
-            }));
-        }""")
-        print(f"  [debug] first 5 vacancy links: {vacancy_links}")
 
     links = await page.evaluate("""() => {
-        // Try current selector, fall back to href pattern
         let els = document.querySelectorAll('a[data-qa="serp-item__title-link"]');
         if (!els.length) els = document.querySelectorAll('a[data-qa="vacancy-serp__vacancy-title"]');
         if (!els.length) {
-            // Fallback: all vacancy links with non-empty text, deduplicated by href
             const all = Array.from(document.querySelectorAll('a[href*="/vacancy/"]'))
                 .filter(a => /\\/vacancy\\/\\d+/.test(a.href) && a.textContent.trim().length > 5);
             const seen = new Set();
@@ -144,18 +206,41 @@ async def run(queries: list[str], pages: int, area: int, pause: float, debug: bo
                     vacancy_id = str(item["id"])
                     title = item.get("name", "")
                     try:
-                        page = await ctx.new_page()
-                        await page.goto(
-                            f"https://hh.ru/vacancy/{vacancy_id}",
-                            wait_until="domcontentloaded",
-                            timeout=30_000,
-                        )
-                        data = await _page_to_vacancy_data(page)
-                        await page.close()
+                        # Official API: richer data (salary, key_skills), faster than Playwright
+                        try:
+                            data = await get_vacancy(vacancy_id)
+                        except Exception:
+                            # Fallback to Playwright if API blocked
+                            vpage = await ctx.new_page()
+                            await vpage.goto(
+                                f"https://hh.ru/vacancy/{vacancy_id}",
+                                wait_until="domcontentloaded",
+                                timeout=30_000,
+                            )
+                            data = await _page_to_vacancy_data(vpage)
+                            await vpage.close()
 
                         text = vacancy_to_text(data)
-                        skills = _extract_skills(text)
-                        await index_vacancy(qdrant, vacancy_id, title, text, skills)
+                        company = data.get("employer", {}).get("name", "")
+                        salary = _salary_str(data)
+                        # Tier 1: official hh.ru tags (HR-normalized)
+                        # Tier 2: BERT NER on text (catches skills not in tags)
+                        # Tier 3: regex fallback (fast, catches what NER misses)
+                        api_skills = [s["name"] for s in data.get("key_skills", [])]
+                        ner_skills = _skill_extractor.extract(text)
+                        regex_skills = _extract_skills(text)
+                        seen: set[str] = set()
+                        skills: list[str] = []
+                        for s in api_skills + ner_skills + regex_skills:
+                            key = s.lower()
+                            if key not in seen:
+                                seen.add(key)
+                                skills.append(s)
+                        url = f"https://hh.ru/vacancy/{vacancy_id}"
+                        await index_vacancy(
+                            qdrant, vacancy_id, title, text, skills,
+                            url=url, company=company, salary_str=salary,
+                        )
                         total_indexed += 1
                         if total_indexed % 20 == 0:
                             print(f"    ... {total_indexed} indexed so far")
@@ -173,11 +258,11 @@ async def run(queries: list[str], pages: int, area: int, pause: float, debug: bo
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Index hh.ru vacancies into Qdrant via Playwright")
+    parser = argparse.ArgumentParser(description="Index hh.ru vacancies into Qdrant")
     parser.add_argument("--query", action="append", dest="queries", metavar="QUERY")
     parser.add_argument("--pages", type=int, default=3, help="Search pages per query (100 vacancies each)")
     parser.add_argument("--area", type=int, default=113, help="hh.ru area: 113=Russia, 1=Moscow, 2=SPb")
-    parser.add_argument("--pause", type=float, default=2.0, help="Seconds between requests")
+    parser.add_argument("--pause", type=float, default=1.5, help="Seconds between requests")
     parser.add_argument("--debug", action="store_true", help="Save screenshot of first search page")
     args = parser.parse_args()
 

@@ -1,11 +1,11 @@
 import type { AnalyzeRequest } from './generated'
-import type { GapData, NodeName, ParsedData } from '../store/analysisStore'
+import type { AdviceData, GapData, NodeName, ParsedData } from '../store/analysisStore'
 import { getToken, getRole } from '../store/authStore'
 
 interface StreamCallbacks {
   onNodeStart: (node: NodeName) => void
   onNodeDone: (node: NodeName) => void
-  onToken: (content: string) => void
+  onAdviceData: (data: AdviceData) => void
   onParsedData: (data: ParsedData, rawResume: string, rawVacancy: string) => void
   onGapData: (data: GapData) => void
   onDone: (state: { match_score?: number; seniority?: string; skills_found?: string[]; skills_missing?: string[] }) => void
@@ -59,8 +59,8 @@ export async function streamAnalyze(
           case 'node_done':
             callbacks.onNodeDone(msg.node as NodeName)
             break
-          case 'token':
-            callbacks.onToken(msg.content)
+          case 'advice_data':
+            callbacks.onAdviceData(msg.data as AdviceData)
             break
           case 'parsed_data':
             callbacks.onParsedData(msg.data ?? {}, msg.raw_resume ?? '', msg.raw_vacancy ?? '')

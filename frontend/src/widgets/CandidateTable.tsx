@@ -9,9 +9,9 @@ const DECISION_STYLES: Record<string, string> = {
 }
 
 const DECISION_LABELS: Record<string, string> = {
-  hire: 'Hire',
-  borderline: 'Borderline',
-  no_hire: 'No Hire',
+  hire: 'Нанять',
+  borderline: 'На рассмотрении',
+  no_hire: 'Отказ',
 }
 
 interface Props {
@@ -32,7 +32,7 @@ export function CandidateTable({ results, nameMap }: Props) {
             <tr>
               <th className="px-3 py-2 text-left w-8">#</th>
               <th className="px-3 py-2 text-left">Кандидат</th>
-              <th className="px-3 py-2 text-left w-32">Score</th>
+              <th className="px-3 py-2 text-left w-32">Совпадение</th>
               <th className="px-3 py-2 text-left w-28">Решение</th>
               <th className="px-3 py-2 text-left">Навыки</th>
             </tr>

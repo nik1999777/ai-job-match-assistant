@@ -33,8 +33,11 @@ async def retrieve_similar_vacancies(query: str, top_k: int = 3) -> list[dict]:
             {
                 "vacancy_id": point.payload.get("vacancy_id", ""),
                 "title": point.payload.get("title", ""),
+                "company": point.payload.get("company", ""),
                 "skills": point.payload.get("skills", []),
                 "score": point.score,
+                "url": point.payload.get("url"),
+                "salary_str": point.payload.get("salary_str"),
             }
             for point in response.points
         ]

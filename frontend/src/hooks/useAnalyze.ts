@@ -11,7 +11,7 @@ export function useAnalyze() {
       streamAnalyze(params, {
         onNodeStart: store.setCurrentNode,
         onNodeDone: store.addCompletedNode,
-        onToken: store.addToken,
+        onAdviceData: store.setAdviceData,
         onParsedData: store.setParsedData,
         onGapData: store.setGapData,
         onDone: (st) =>

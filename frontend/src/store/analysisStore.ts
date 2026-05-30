@@ -3,9 +3,9 @@ import { create } from 'zustand'
 export type NodeName = 'parse_node' | 'gap_node' | 'advise_node'
 
 export const NODE_LABELS: Record<NodeName, string> = {
-  parse_node: 'Parsing resume & vacancy',
-  gap_node: 'Analyzing skill gaps',
-  advise_node: 'Generating advice',
+  parse_node: 'Парсинг резюме и вакансии',
+  gap_node: 'Анализ навыков',
+  advise_node: 'Формирование рекомендаций',
 }
 
 export interface ParsedData {
@@ -18,8 +18,11 @@ export interface ParsedData {
 
 export interface SimilarVacancy {
   title?: string
+  company?: string
   skills?: string[]
   score?: number
+  url?: string | null
+  salary_str?: string | null
 }
 
 export interface GapData {
@@ -31,13 +34,35 @@ export interface GapData {
   similar_vacancies: SimilarVacancy[]
 }
 
+export interface SkillTip {
+  skill: string
+  action: string
+}
+
+export interface SeekerAdvice {
+  overall: string
+  top_skills: SkillTip[]
+  resume_tips: string[]
+  strategy: string
+}
+
+export interface HRAdvice {
+  candidate_fit: string
+  strengths: string[]
+  gaps: string[]
+  decision: 'Hire' | 'Borderline' | 'No Hire'
+  decision_reason: string
+}
+
+export type AdviceData = SeekerAdvice | HRAdvice
+
 export type AnalysisStatus = 'idle' | 'loading' | 'done' | 'error'
 
 interface AnalysisState {
   status: AnalysisStatus
   currentNode: NodeName | null
   completedNodes: NodeName[]
-  tokens: string
+  adviceData: AdviceData | null
   matchScore: number | null
   seniority: string | null
   skillsFound: string[]
@@ -53,7 +78,7 @@ interface AnalysisActions {
   setLoading: () => void
   setCurrentNode: (node: NodeName) => void
   addCompletedNode: (node: NodeName) => void
-  addToken: (content: string) => void
+  setAdviceData: (data: AdviceData) => void
   setParsedData: (data: ParsedData, rawResume: string, rawVacancy: string) => void
   setGapData: (data: GapData) => void
   setDone: (result: Pick<AnalysisState, 'matchScore' | 'seniority' | 'skillsFound' | 'skillsMissing'>) => void
@@ -65,7 +90,7 @@ const initialState: AnalysisState = {
   status: 'idle',
   currentNode: null,
   completedNodes: [],
-  tokens: '',
+  adviceData: null,
   matchScore: null,
   seniority: null,
   skillsFound: [],
@@ -89,7 +114,7 @@ export const useAnalysisStore = create<AnalysisState & AnalysisActions>((set) =>
     completedNodes: [...s.completedNodes, node],
   })),
 
-  addToken: (content) => set((s) => ({ tokens: s.tokens + content })),
+  setAdviceData: (data) => set({ adviceData: data }),
 
   setParsedData: (data, rawResume, rawVacancy) =>
     set({ parsedData: data, rawResume, rawVacancy }),

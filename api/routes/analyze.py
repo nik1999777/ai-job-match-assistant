@@ -68,6 +68,7 @@ async def analyze(
         async for chunk, state in event_stream(
             graph, resume_text, vacancy_text,
             mode=body.mode, user_id=user_id, session_id=session_id,
+            vacancy_url=body.vacancy_url,
         ):
             yield chunk
             result = state
@@ -78,7 +79,10 @@ async def analyze(
             analysis.seniority_confidence = result.get("seniority_confidence")
             analysis.skills_found = json.dumps(result.get("skills_found", []))
             analysis.skills_missing = json.dumps(result.get("skills_missing", []))
-            analysis.llm_response = result.get("llm_response", "")
+            llm_resp = result.get("llm_response", "")
+            analysis.llm_response = json.dumps(llm_resp) if isinstance(llm_resp, dict) else llm_resp
+            similar = result.get("similar_vacancies", [])
+            analysis.similar_vacancies = json.dumps(similar) if similar else None
             await db.commit()
 
     return StreamingResponse(generate(), media_type="text/event-stream")

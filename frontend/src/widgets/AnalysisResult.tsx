@@ -1,9 +1,9 @@
-import ReactMarkdown from 'react-markdown'
 import { Separator } from '../components/ui/separator'
 import { PipelineProgress } from '../components/PipelineProgress'
 import { MatchScore } from '../components/MatchScore'
 import { SkillBadges } from '../components/SkillBadges'
-import { PipelineInspector } from '../components/PipelineInspector'
+import { SimilarVacancies } from '../components/SimilarVacancies'
+import { AdviceCard, AdviceSkeleton } from '../components/AdviceCard'
 import { useAnalysisStore } from '../store/analysisStore'
 
 export function AnalysisResult() {
@@ -12,7 +12,7 @@ export function AnalysisResult() {
   if (state.status === 'idle') {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        Fill in the form and click "Analyze match"
+        Заполните форму и нажмите «Анализировать»
       </div>
     )
   }
@@ -24,6 +24,8 @@ export function AnalysisResult() {
       </div>
     )
   }
+
+  const advisePending = state.currentNode === 'advise_node'
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,21 +42,26 @@ export function AnalysisResult() {
         </>
       )}
 
-      {state.tokens && (
+      {state.gapData && state.gapData.similar_vacancies.length > 0 && (
         <>
           <Separator />
-          <div className="prose prose-sm max-w-none text-foreground">
-            <ReactMarkdown>{state.tokens}</ReactMarkdown>
-          </div>
+          <SimilarVacancies
+            vacancies={state.gapData.similar_vacancies}
+            missingSkills={state.skillsMissing}
+          />
         </>
       )}
 
-      <PipelineInspector
-        parsedData={state.parsedData}
-        gapData={state.gapData}
-        rawResume={state.rawResume}
-        rawVacancy={state.rawVacancy}
-      />
+      {(state.adviceData || advisePending) && (
+        <>
+          <Separator />
+          {advisePending
+            ? <AdviceSkeleton />
+            : state.adviceData && <AdviceCard data={state.adviceData} />
+          }
+        </>
+      )}
+
     </div>
   )
 }

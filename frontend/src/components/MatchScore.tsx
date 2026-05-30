@@ -16,7 +16,7 @@ export function MatchScore({ matchScore, seniority }: Props) {
       {pct != null && (
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Match score</span>
+            <span className="text-muted-foreground">Совпадение</span>
             <span className="font-medium">{pct}%</span>
           </div>
           <Progress value={pct} />
