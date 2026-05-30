@@ -16,7 +16,7 @@ langgraph>=1.2.0
 
 # HuggingFace
 transformers==4.47.1
-peft==0.14.0
+peft>=0.14.0
 datasets>=3.2.0
 accelerate>=1.2.1
 torch>=2.6.0
